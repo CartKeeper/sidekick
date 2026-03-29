@@ -1,4 +1,4 @@
-import { Shield, Plus, Lock, LifeBuoy } from 'lucide-react';
+import { Plus, Lock, LifeBuoy } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ProjectCard } from './ProjectCard';
 import { AddProjectModal } from './AddProjectModal';

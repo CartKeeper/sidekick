@@ -35,14 +35,9 @@ export function SecretRow({ secret }: SecretRowProps) {
     } catch {}
   };
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingSecret(secret);
-  };
-
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Delete secret "${secret.key}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete secret "${secret.key}"?`)) return;
     setDeleting(true);
     try {
       await api.secrets.remove(secret.id);
@@ -59,175 +54,118 @@ export function SecretRow({ secret }: SecretRowProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        height: '48px',
-        padding: '0',
+        padding: '10px 0',
         borderBottom: '1px solid #2a2a3a',
         backgroundColor: hovered ? 'rgba(255,255,255,0.025)' : 'transparent',
         transition: 'background-color 150ms ease',
-        cursor: 'default',
       }}
     >
-      {/* Key name — takes available space, truncates */}
-      <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
+      {/* Row 1: key name + type badge + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span
           style={{
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 600,
             color: '#e4e4ed',
-            letterSpacing: '0.02em',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            display: 'block',
-          }}
-        >
-          {secret.key}
-        </span>
-      </div>
-
-      {/* Type badge — fixed width column */}
-      <div style={{ width: '90px', flexShrink: 0, paddingRight: '12px' }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            height: '22px',
-            padding: '0 8px',
-            fontSize: '11px',
-            fontWeight: 600,
-            color: typeColor,
-            backgroundColor: `${typeColor}1a`,
-            borderRadius: '6px',
-            whiteSpace: 'nowrap',
-            letterSpacing: '0.02em',
-          }}
-        >
-          {(secret.type || 'generic').replace(/_/g, ' ')}
-        </span>
-      </div>
-
-      {/* Value — fixed width column */}
-      <div
-        style={{
-          width: '140px',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-mono, monospace)',
-            fontSize: '12px',
-            color: revealed ? '#a1a1b5' : '#6b6b80',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             flex: 1,
             minWidth: 0,
-            userSelect: revealed ? 'text' : 'none',
           }}
         >
-          {revealed ? (secret.value ?? '(empty)') : '••••••••••••'}
+          {secret.key}
         </span>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setRevealed((v) => !v); }}
-          title={revealed ? 'Hide' : 'Reveal'}
+
+        <span
           style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#6b6b80',
-            cursor: 'pointer',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            height: '20px',
+            padding: '0 6px',
+            fontSize: '10px',
+            fontWeight: 600,
+            color: typeColor,
+            backgroundColor: `${typeColor}1a`,
+            borderRadius: '4px',
+            whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          {revealed ? <EyeOff size={12} /> : <Eye size={12} />}
-        </button>
+          {(secret.type || 'generic').replace(/_/g, ' ')}
+        </span>
+
+        {/* Actions — visible on hover */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '2px',
+            flexShrink: 0,
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 150ms ease',
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setRevealed(v => !v); }}
+            title={revealed ? 'Hide' : 'Reveal'}
+            style={iconBtn}
+          >
+            {revealed ? <EyeOff size={12} /> : <Eye size={12} />}
+          </button>
+          <button type="button" onClick={handleCopy} title="Copy" style={iconBtn}>
+            {copied ? <Check size={12} color="#22c55e" /> : <Copy size={12} />}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setEditingSecret(secret); }}
+            title="Edit"
+            style={iconBtn}
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Delete"
+            style={{ ...iconBtn, opacity: deleting ? 0.4 : 1 }}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
 
-      {/* Actions — fixed width column */}
+      {/* Row 2: value (dots or revealed) */}
       <div
         style={{
-          width: '104px',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '2px',
-          justifyContent: 'flex-end',
-          opacity: hovered ? 1 : 0.3,
-          transition: 'opacity 150ms ease',
+          marginTop: '4px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontSize: '12px',
+          color: revealed ? '#a1a1b5' : '#4a4a5a',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          userSelect: revealed ? 'text' : 'none',
         }}
       >
-        <button
-          type="button"
-          onClick={handleCopy}
-          title="Copy"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: copied ? '#22c55e' : '#6b6b80',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-        </button>
-        <button
-          type="button"
-          onClick={handleEdit}
-          title="Edit"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#6b6b80',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          title="Delete"
-          disabled={deleting}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#6b6b80',
-            cursor: deleting ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: deleting ? 0.5 : 1,
-          }}
-        >
-          <Trash2 size={14} />
-        </button>
+        {revealed ? (secret.value ?? '(empty)') : '••••••••••••••••'}
       </div>
     </div>
   );
 }
+
+const iconBtn: React.CSSProperties = {
+  width: '24px',
+  height: '24px',
+  borderRadius: '6px',
+  border: 'none',
+  backgroundColor: 'transparent',
+  color: '#6b6b80',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+  padding: 0,
+};

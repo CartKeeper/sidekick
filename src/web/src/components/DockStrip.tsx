@@ -1,4 +1,4 @@
-import { Shield, Maximize2, Lock } from 'lucide-react';
+import { Maximize2, Lock } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 
 interface DockStripProps {
@@ -129,7 +129,7 @@ export function DockStrip({ activeTab, onTabClick, onUndock, onLock }: DockStrip
         onClick={() => onTabClick('main')}
         title="Sidekick"
       >
-        <Shield size={18} />
+        <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
       </StripTab>
 
       {/* Separator */}
