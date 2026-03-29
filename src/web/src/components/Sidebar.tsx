@@ -120,6 +120,9 @@ export function Sidebar() {
             flex: 1,
             overflowY: 'auto',
             padding: '4px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
           }}
         >
           {activeProjects.length === 0 ? (

@@ -19,7 +19,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       data-item-id={project.id}
       onClick={() => selectProject(project.id)}
       className="no-drag w-full text-left group"
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', border: 'none', background: 'none', padding: 0, font: 'inherit' }}
     >
       <div
         style={{
@@ -48,18 +48,31 @@ export function ProjectCard({ project }: ProjectCardProps) {
           }
         }}
       >
-        {/* Icon */}
-        <span
-          style={{
-            fontSize: '18px',
-            lineHeight: 1,
-            flexShrink: 0,
-            width: '24px',
-            textAlign: 'center',
-          }}
-        >
-          {project.icon || '📁'}
-        </span>
+        {/* Icon — colored dot if no emoji set */}
+        {project.icon && /\p{Emoji}/u.test(project.icon) ? (
+          <span
+            style={{
+              fontSize: '16px',
+              lineHeight: 1,
+              flexShrink: 0,
+              width: '24px',
+              textAlign: 'center',
+            }}
+          >
+            {project.icon}
+          </span>
+        ) : (
+          <div
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: project.color || '#6366f1',
+              flexShrink: 0,
+              marginLeft: '7px',
+            }}
+          />
+        )}
 
         {/* Name + metadata */}
         <div style={{ flex: 1, minWidth: 0 }}>
