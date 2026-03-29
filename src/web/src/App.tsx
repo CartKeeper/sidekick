@@ -121,6 +121,10 @@ export function App() {
 
     if ((justUnlocked || freshLoad) && !migrationChecked) {
       setMigrationChecked(true);
+
+      // Don't show if user previously dismissed
+      if (localStorage.getItem('sidekick_migration_dismissed') === 'true') return;
+
       api.migration.detect().then((result) => {
         const sources: any[] = result.sources ?? [];
         if (sources.length > 0) {
@@ -148,8 +152,14 @@ export function App() {
     return (
       <MigrationScreen
         preview={migrationPreview}
-        onComplete={() => setShowMigration(false)}
-        onSkip={() => setShowMigration(false)}
+        onComplete={() => {
+          localStorage.setItem('sidekick_migration_dismissed', 'true');
+          setShowMigration(false);
+        }}
+        onSkip={() => {
+          localStorage.setItem('sidekick_migration_dismissed', 'true');
+          setShowMigration(false);
+        }}
       />
     );
   }
