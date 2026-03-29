@@ -249,7 +249,9 @@ export function Layout() {
           style={{
             flex: 1,
             overflow: 'auto',
+            overflowX: 'hidden',
             padding: '24px',
+            minWidth: 0,
           }}
         >
           {currentProjectId ? <ProjectDetail /> : <WelcomeDashboard />}

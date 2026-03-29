@@ -31,7 +31,7 @@ export function ProjectDetail() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, minWidth: 0, maxWidth: '100%' }}
     >
       {/* Project header */}
       <div
@@ -44,7 +44,19 @@ export function ProjectDetail() {
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: '28px', lineHeight: 1 }}>{currentProject.icon || '📁'}</span>
+        {currentProject.icon && /\p{Emoji}/u.test(currentProject.icon) ? (
+          <span style={{ fontSize: '24px', lineHeight: 1 }}>{currentProject.icon}</span>
+        ) : (
+          <div
+            style={{
+              width: '14px',
+              height: '14px',
+              borderRadius: '50%',
+              backgroundColor: currentProject.color || '#6366f1',
+              flexShrink: 0,
+            }}
+          />
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1
             style={{
