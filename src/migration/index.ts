@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import Database from 'better-sqlite3';
-import { deriveKey, decrypt, encrypt, verifyPassword } from '../core/crypto.js';
+import { pbkdf2Sync } from 'node:crypto';
+import { decrypt, encrypt, verifyPassword } from '../core/crypto.js';
 import { getDb, newId, logAudit } from '../core/db.js';
 
 export interface MigrationSource {
@@ -192,7 +193,14 @@ export async function runMigration(opts: {
           result.errors.push('Invalid Infiscal master password');
           oldDb.close();
         } else {
-          const oldKey = deriveKey(infiscalPassword, oldSalt.value);
+          // Infiscal converts hex salt to Buffer before PBKDF2 — must match exactly
+          const oldKey = pbkdf2Sync(
+            infiscalPassword,
+            Buffer.from(oldSalt.value, 'hex'),
+            100_000,
+            32,
+            'sha512'
+          );
 
           // Get all projects
           const oldProjects = oldDb

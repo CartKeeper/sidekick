@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
-import { generateSalt, deriveKey, encrypt, decrypt, hashPassword } from '../../core/crypto.js';
+import { pbkdf2Sync } from 'node:crypto';
+import { generateSalt, deriveKey, encrypt, decrypt } from '../../core/crypto.js';
 import { getDb, closeDb } from '../../core/db.js';
 import { runMigration, detectSources, type MigrationSource } from '../../migration/index.js';
 
@@ -35,7 +36,8 @@ function createFakeInfiscalDb(dbPath: string, password: string) {
   `);
 
   const salt = generateSalt();
-  const key = deriveKey(password, salt);
+  // Match Infiscal's key derivation: salt as Buffer, not string
+  const key = pbkdf2Sync(password, Buffer.from(salt, 'hex'), 100_000, 32, 'sha512');
 
   const hash = bcrypt.hashSync(password, 12);
 
