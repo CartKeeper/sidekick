@@ -160,6 +160,11 @@ export const api = {
     projectStatus: (projectId: string) =>
       get<{ running: boolean; processes: any[] }>(`/process/status/${projectId}`),
   },
+  migration: {
+    detect: () => get<{ sources: any[]; preview: any }>('/migration/detect'),
+    run: (infiscalPassword?: string) =>
+      post<{ imported: any; errors: string[] }>('/migration/run', { infiscalPassword }),
+  },
 };
 
 // --- Process Streaming Types & Helper ---
