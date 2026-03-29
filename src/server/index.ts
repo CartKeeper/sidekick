@@ -42,3 +42,18 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
 
   return app;
 }
+
+// Start server when run directly
+const entry = process.argv[1] ?? '';
+if (entry.includes('server/index')) {
+  const port = parseInt(process.env.PORT ?? '3778', 10);
+  const app = await buildApp({ logger: true });
+
+  app.listen({ port, host: '0.0.0.0' }, (err, address) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+    console.log(`Sidekick API running at ${address}`);
+  });
+}
