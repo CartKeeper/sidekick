@@ -9,7 +9,7 @@ const VITE_PORT = 5173;
 let mainWindow = null;
 let serverProcess = null;
 let tray = null;
-let dockMode = true; // Start in dock mode
+let dockMode = false; // Start in normal window mode (dock mode available via tray/menu)
 let panelOpen = false;
 let autoLockTimer = null;
 const AUTO_LOCK_MS = 30 * 60 * 1000; // 30 minutes
@@ -77,25 +77,50 @@ function startServer() {
 }
 
 function createWindow() {
-  const bounds = getDockBounds();
+  const display = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = display.workAreaSize;
+  const { x: workX, y: workY } = display.workArea;
 
-  mainWindow = new BrowserWindow({
-    ...bounds,
-    frame: false,
-    transparent: false,
-    backgroundColor: '#0a0a0f',
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    hasShadow: true,
-    roundedCorners: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-    show: false,
-  });
+  if (dockMode) {
+    const bounds = getDockBounds();
+    mainWindow = new BrowserWindow({
+      ...bounds,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#0a0a0f',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      hasShadow: true,
+      roundedCorners: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+      show: false,
+    });
+  } else {
+    const w = 1100;
+    const h = 750;
+    mainWindow = new BrowserWindow({
+      x: workX + Math.round((screenW - w) / 2),
+      y: workY + Math.round((screenH - h) / 2),
+      width: w,
+      height: h,
+      minWidth: 800,
+      minHeight: 600,
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 16, y: 16 },
+      backgroundColor: '#0a0a0f',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+      show: false,
+    });
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
