@@ -110,8 +110,8 @@ function createWindow() {
       height: h,
       minWidth: 800,
       minHeight: 600,
-      titleBarStyle: 'hidden',
-      trafficLightPosition: { x: -20, y: -20 },
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 16, y: 16 },
       backgroundColor: '#0a0a0f',
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
@@ -161,34 +161,18 @@ function switchToDocked() {
   if (!mainWindow) return;
   dockMode = true;
   panelOpen = false;
-  const bounds = getDockBounds();
-  mainWindow.setAlwaysOnTop(true);
-  mainWindow.setResizable(false);
-  mainWindow.setSkipTaskbar(true);
-  mainWindow.setBounds(bounds, true);
-  mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
+  // Must recreate window — can't change frame property on existing window
+  mainWindow.close();
+  createWindow();
 }
 
 function switchToDetached() {
   if (!mainWindow) return;
   dockMode = false;
   panelOpen = false;
-  const display = screen.getPrimaryDisplay();
-  const { width: screenW, height: screenH } = display.workAreaSize;
-  const { x: workX, y: workY } = display.workArea;
-  const w = 1100;
-  const h = 750;
-
-  mainWindow.setAlwaysOnTop(false);
-  mainWindow.setResizable(true);
-  mainWindow.setSkipTaskbar(false);
-  mainWindow.setBounds({
-    x: workX + Math.round((screenW - w) / 2),
-    y: workY + Math.round((screenH - h) / 2),
-    width: w,
-    height: h,
-  }, true);
-  mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
+  // Must recreate window — can't change frame property on existing window
+  mainWindow.close();
+  createWindow();
 }
 
 function togglePanel() {
