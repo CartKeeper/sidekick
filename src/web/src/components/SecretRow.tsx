@@ -14,31 +14,6 @@ const TYPE_COLORS: Record<string, string> = {
   generic: '#6b7280',
 };
 
-function TypeBadge({ type }: { type: string }) {
-  const color = TYPE_COLORS[type] ?? TYPE_COLORS.generic;
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: '24px',
-        padding: '0 8px',
-        fontSize: '12px',
-        fontWeight: 600,
-        color,
-        backgroundColor: `${color}1a`,
-        border: `1px solid ${color}40`,
-        borderRadius: '6px',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-        letterSpacing: '0.02em',
-      }}
-    >
-      {type.replace(/_/g, ' ')}
-    </span>
-  );
-}
-
 interface SecretRowProps {
   secret: Secret;
 }
@@ -57,9 +32,7 @@ export function SecretRow({ secret }: SecretRowProps) {
       await navigator.clipboard.writeText(secret.value);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard not available
-    }
+    } catch {}
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -79,10 +52,7 @@ export function SecretRow({ secret }: SecretRowProps) {
     }
   };
 
-  const toggleReveal = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setRevealed((v) => !v);
-  };
+  const typeColor = TYPE_COLORS[secret.type] ?? TYPE_COLORS.generic;
 
   return (
     <div
@@ -91,75 +61,73 @@ export function SecretRow({ secret }: SecretRowProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        padding: '12px 0',
+        height: '48px',
+        padding: '0',
         borderBottom: '1px solid #2a2a3a',
         backgroundColor: hovered ? 'rgba(255,255,255,0.025)' : 'transparent',
         transition: 'background-color 150ms ease',
         cursor: 'default',
       }}
     >
-      {/* Key + notes */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
+      {/* Key name — takes available space, truncates */}
+      <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
+        <span
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            flexWrap: 'wrap',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#e4e4ed',
+            letterSpacing: '0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'block',
           }}
         >
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#e4e4ed',
-              letterSpacing: '0.02em',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {secret.key}
-          </span>
-          <TypeBadge type={secret.type || 'generic'} />
-        </div>
-        {secret.notes && (
-          <p
-            style={{
-              fontSize: '12px',
-              fontWeight: 400,
-              color: '#6b6b80',
-              margin: '2px 0 0',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {secret.notes}
-          </p>
-        )}
+          {secret.key}
+        </span>
       </div>
 
-      {/* Value */}
+      {/* Type badge — fixed width column */}
+      <div style={{ width: '90px', flexShrink: 0, paddingRight: '12px' }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: '22px',
+            padding: '0 8px',
+            fontSize: '11px',
+            fontWeight: 600,
+            color: typeColor,
+            backgroundColor: `${typeColor}1a`,
+            borderRadius: '6px',
+            whiteSpace: 'nowrap',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {(secret.type || 'generic').replace(/_/g, ' ')}
+        </span>
+      </div>
+
+      {/* Value — fixed width column */}
       <div
         style={{
+          width: '140px',
+          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          minWidth: 0,
-          overflow: 'hidden',
+          gap: '4px',
         }}
       >
         <span
           style={{
             fontFamily: 'var(--font-mono, monospace)',
-            fontSize: '13px',
+            fontSize: '12px',
             color: revealed ? '#a1a1b5' : '#6b6b80',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            maxWidth: '200px',
+            flex: 1,
+            minWidth: 0,
             userSelect: revealed ? 'text' : 'none',
           }}
         >
@@ -167,11 +135,11 @@ export function SecretRow({ secret }: SecretRowProps) {
         </span>
         <button
           type="button"
-          onClick={toggleReveal}
-          title={revealed ? 'Hide value' : 'Reveal value'}
+          onClick={(e) => { e.stopPropagation(); setRevealed((v) => !v); }}
+          title={revealed ? 'Hide' : 'Reveal'}
           style={{
-            width: '28px',
-            height: '28px',
+            width: '24px',
+            height: '24px',
             borderRadius: '6px',
             border: 'none',
             backgroundColor: 'transparent',
@@ -180,40 +148,30 @@ export function SecretRow({ secret }: SecretRowProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background-color 150ms ease, color 150ms ease',
             flexShrink: 0,
           }}
-          onMouseEnter={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = '#222230';
-            btn.style.color = '#e4e4ed';
-          }}
-          onMouseLeave={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = '#6b6b80';
-          }}
         >
-          {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
+          {revealed ? <EyeOff size={12} /> : <Eye size={12} />}
         </button>
       </div>
 
-      {/* Actions */}
+      {/* Actions — fixed width column */}
       <div
         style={{
+          width: '104px',
+          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
-          flexShrink: 0,
-          opacity: hovered ? 1 : 0.4,
+          gap: '2px',
+          justifyContent: 'flex-end',
+          opacity: hovered ? 1 : 0.3,
           transition: 'opacity 150ms ease',
         }}
       >
-        {/* Copy */}
         <button
           type="button"
           onClick={handleCopy}
-          title="Copy value"
+          title="Copy"
           style={{
             width: '32px',
             height: '32px',
@@ -225,28 +183,14 @@ export function SecretRow({ secret }: SecretRowProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background-color 150ms ease, color 150ms ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = '#222230';
-            if (!copied) btn.style.color = '#e4e4ed';
-          }}
-          onMouseLeave={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = copied ? '#22c55e' : '#6b6b80';
           }}
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
         </button>
-
-        {/* Edit */}
         <button
           type="button"
           onClick={handleEdit}
-          title="Edit secret"
+          title="Edit"
           style={{
             width: '32px',
             height: '32px',
@@ -258,28 +202,14 @@ export function SecretRow({ secret }: SecretRowProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background-color 150ms ease, color 150ms ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = '#222230';
-            btn.style.color = '#e4e4ed';
-          }}
-          onMouseLeave={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = '#6b6b80';
           }}
         >
           <Pencil size={14} />
         </button>
-
-        {/* Delete */}
         <button
           type="button"
           onClick={handleDelete}
-          title="Delete secret"
+          title="Delete"
           disabled={deleting}
           style={{
             width: '32px',
@@ -292,20 +222,7 @@ export function SecretRow({ secret }: SecretRowProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background-color 150ms ease, color 150ms ease',
-            flexShrink: 0,
             opacity: deleting ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (deleting) return;
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = 'rgba(239,68,68,0.1)';
-            btn.style.color = '#ef4444';
-          }}
-          onMouseLeave={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = '#6b6b80';
           }}
         >
           <Trash2 size={14} />
