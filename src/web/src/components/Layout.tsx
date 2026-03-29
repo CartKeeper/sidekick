@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FolderOpen } from 'lucide-react';
 import { useAppStore } from '../stores/app';
+import { connectProcessStream } from '../api/client';
 import { Sidebar } from './Sidebar';
 import { ProjectDetail } from './ProjectDetail';
 import { HelpButton } from './HelpButton';
@@ -148,6 +149,23 @@ export function Layout() {
     fetchProjects();
     fetchStats();
   }, [fetchProjects, fetchStats]);
+
+  // Connect to SSE process output stream
+  useEffect(() => {
+    const cleanup = connectProcessStream(
+      (event) => {
+        useAppStore.getState().appendOutput(event.processId, event.data);
+      },
+      (event) => {
+        useAppStore.getState().handleProcessExit(event.processId);
+      },
+      (processes) => {
+        useAppStore.setState({ runningProcesses: processes });
+      }
+    );
+
+    return cleanup;
+  }, []);
 
   return (
     <div

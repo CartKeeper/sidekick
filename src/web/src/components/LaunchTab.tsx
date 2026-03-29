@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit2, Check, X, Terminal, Code2, Globe, Rocket, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Terminal, Code2, Globe, Rocket, FolderOpen, Square, RefreshCw } from 'lucide-react';
 import { api, type Project, type Environment } from '../api/client';
+import { useAppStore } from '../stores/app';
+import { TerminalPanel } from './TerminalPanel';
 
 interface StartCommand {
   name: string;
@@ -86,6 +88,8 @@ const sectionLabel: React.CSSProperties = {
 };
 
 export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
+  const { runningProcesses, processOutput, launchProject, stopProject, restartProject, killProcess } = useAppStore();
+
   const [commands, setCommands] = useState<StartCommand[]>(
     project.start_commands ?? []
   );
@@ -95,7 +99,7 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
   const [enableVscode, setEnableVscode] = useState(project.enable_vscode ?? false);
   const [enableBrowser, setEnableBrowser] = useState(project.enable_browser ?? true);
   const [saving, setSaving] = useState(false);
-  const [launchTooltip, setLaunchTooltip] = useState(false);
+  const [launching, setLaunching] = useState(false);
 
   // Add command state
   const [addingCmd, setAddingCmd] = useState(false);
@@ -108,6 +112,20 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
   const [editName, setEditName] = useState('');
   const [editCommand, setEditCommand] = useState('');
   const [editPath, setEditPath] = useState('');
+
+  // Active process tab (for multi-process output)
+  const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
+
+  // Determine if this project is running
+  const projectProcesses = runningProcesses.filter((p) => p.projectId === project.id);
+  const isRunning = projectProcesses.length > 0 && projectProcesses.some(
+    (p) => p.status !== 'stopped' && p.status !== 'crashed' && p.status !== 'killed'
+  );
+
+  // Active process for terminal display
+  const activeProcess = activeProcessId
+    ? projectProcesses.find((p) => p.id === activeProcessId) ?? projectProcesses[0]
+    : projectProcesses[0];
 
   const save = async (fields: Partial<Project>) => {
     setSaving(true);
@@ -161,6 +179,23 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
 
   const handleCancelEdit = () => {
     setEditingIndex(null);
+  };
+
+  const handleLaunch = async () => {
+    setLaunching(true);
+    try {
+      await launchProject(project.id);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  const handleStop = async () => {
+    await stopProject(project.id);
+  };
+
+  const handleRestart = async () => {
+    await restartProject(project.id);
   };
 
   const inputStyle: React.CSSProperties = {
@@ -634,13 +669,81 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
         </div>
       </section>
 
-      {/* Launch Button */}
+      {/* Launch / Stop / Restart Buttons */}
       <section>
-        <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+        {isRunning ? (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Stop button */}
+            <button
+              type="button"
+              onClick={handleStop}
+              style={{
+                flex: 1,
+                height: '48px',
+                backgroundColor: 'rgba(249,226,175,0.1)',
+                border: '1px solid rgba(249,226,175,0.25)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#f9e2af',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 150ms ease, border-color 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(249,226,175,0.18)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(249,226,175,0.45)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(249,226,175,0.1)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(249,226,175,0.25)';
+              }}
+            >
+              <Square size={16} />
+              Stop
+            </button>
+
+            {/* Restart button */}
+            <button
+              type="button"
+              onClick={handleRestart}
+              style={{
+                flex: 1,
+                height: '48px',
+                backgroundColor: 'rgba(137,180,250,0.1)',
+                border: '1px solid rgba(137,180,250,0.25)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#89b4fa',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 150ms ease, border-color 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(137,180,250,0.18)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(137,180,250,0.45)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(137,180,250,0.1)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(137,180,250,0.25)';
+              }}
+            >
+              <RefreshCw size={16} />
+              Restart
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={() => setLaunchTooltip(true)}
-            onMouseLeave={() => setTimeout(() => setLaunchTooltip(false), 150)}
+            onClick={handleLaunch}
+            disabled={launching || saving || commands.length === 0}
             style={{
               width: '100%',
               height: '48px',
@@ -650,58 +753,105 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
               fontSize: '14px',
               fontWeight: 600,
               color: '#ffffff',
-              cursor: 'pointer',
+              cursor: launching || commands.length === 0 ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
               transition: 'background-color 150ms ease',
-              opacity: saving ? 0.7 : 1,
+              opacity: launching || saving || commands.length === 0 ? 0.5 : 1,
+              pointerEvents: launching ? 'none' : undefined,
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#5558e6';
+              if (!launching && commands.length > 0) {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#5558e6';
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6366f1';
             }}
           >
             <Rocket size={18} />
-            Launch Project
+            {launching ? 'Launching…' : commands.length === 0 ? 'Add a command to launch' : 'Launch Project'}
           </button>
+        )}
+      </section>
 
-          {launchTooltip && (
+      {/* Terminal Output — shown when processes exist */}
+      {projectProcesses.length > 0 && (
+        <section>
+          <p style={sectionLabel}>Process Output</p>
+
+          {/* Process tabs (shown when multiple processes) */}
+          {projectProcesses.length > 1 && (
             <div
               style={{
-                position: 'absolute',
-                bottom: 'calc(100% + 8px)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                backgroundColor: '#2a2a3a',
-                border: '1px solid #3a3a4a',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontSize: '12px',
-                color: '#a1a1b5',
-                whiteSpace: 'nowrap',
-                zIndex: 10,
-                pointerEvents: 'none',
+                display: 'flex',
+                gap: '4px',
+                marginBottom: '8px',
+                overflowX: 'auto',
               }}
             >
-              Launch functionality coming in Phase 3
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 0,
-                  height: 0,
-                  borderLeft: '6px solid transparent',
-                  borderRight: '6px solid transparent',
-                  borderTop: '6px solid #3a3a4a',
-                }}
-              />
+              {projectProcesses.map((proc) => {
+                const isActive = (activeProcessId ?? projectProcesses[0]?.id) === proc.id;
+                const procRunning = proc.status !== 'stopped' && proc.status !== 'crashed' && proc.status !== 'killed';
+                return (
+                  <button
+                    key={proc.id}
+                    type="button"
+                    onClick={() => setActiveProcessId(proc.id)}
+                    style={{
+                      height: '32px',
+                      padding: '0 12px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      border: isActive ? '1px solid #6366f1' : '1px solid #2a2a3a',
+                      backgroundColor: isActive ? 'rgba(99,102,241,0.15)' : 'transparent',
+                      color: isActive ? '#89b4fa' : '#6b6b80',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      whiteSpace: 'nowrap',
+                      transition: 'color 150ms ease, border-color 150ms ease, background-color 150ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '9999px',
+                        backgroundColor: procRunning ? '#a6e3a1' : '#585b70',
+                        flexShrink: 0,
+                        ...(procRunning ? { boxShadow: '0 0 4px #a6e3a1' } : {}),
+                      }}
+                    />
+                    {proc.name || proc.id}
+                  </button>
+                );
+              })}
             </div>
           )}
-        </div>
-      </section>
+
+          {/* Terminal panel for active process */}
+          {activeProcess && (
+            <TerminalPanel
+              processId={activeProcess.id}
+              processName={activeProcess.name || activeProcess.id}
+              projectId={project.id}
+              onStop={
+                activeProcess.status !== 'stopped' && activeProcess.status !== 'crashed'
+                  ? handleStop
+                  : undefined
+              }
+              onRestart={handleRestart}
+              onKill={() => killProcess(activeProcess.id)}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 }
