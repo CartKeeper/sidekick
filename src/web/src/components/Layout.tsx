@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { FolderOpen } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { Sidebar } from './Sidebar';
+import { ProjectDetail } from './ProjectDetail';
+import { HelpButton } from './HelpButton';
 
 // Placeholder until ProjectDetail is implemented in the next task
 function WelcomeDashboard() {
@@ -137,65 +139,6 @@ function WelcomeDashboard() {
   );
 }
 
-function ProjectDetailPlaceholder() {
-  const { currentProject } = useAppStore();
-
-  return (
-    <motion.div
-      key={currentProject?.id}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '0 0 16px',
-          borderBottom: '1px solid #2a2a3a',
-        }}
-      >
-        <span style={{ fontSize: '28px' }}>{currentProject?.icon || '📁'}</span>
-        <div>
-          <h1
-            style={{
-              fontSize: '20px',
-              fontWeight: 600,
-              color: '#e4e4ed',
-              margin: '0 0 2px',
-            }}
-          >
-            {currentProject?.name}
-          </h1>
-          {currentProject?.description && (
-            <p style={{ fontSize: '14px', color: '#a1a1b5', margin: 0 }}>
-              {currentProject.description}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: '16px',
-          backgroundColor: '#1a1a25',
-          border: '1px solid #2a2a3a',
-          borderRadius: '12px',
-          color: '#a1a1b5',
-          fontSize: '14px',
-        }}
-      >
-        Project detail coming in the next task. Secrets, environments, and tooling will appear here.
-      </div>
-    </motion.div>
-  );
-}
 
 export function Layout() {
   const { currentProjectId, fetchProjects, fetchStats } = useAppStore();
@@ -246,9 +189,11 @@ export function Layout() {
             padding: '24px',
           }}
         >
-          {currentProjectId ? <ProjectDetailPlaceholder /> : <WelcomeDashboard />}
+          {currentProjectId ? <ProjectDetail /> : <WelcomeDashboard />}
         </main>
       </div>
+
+      <HelpButton />
     </div>
   );
 }
