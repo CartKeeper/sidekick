@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Upload, KeyRound } from 'lucide-react';
+import { Plus, Upload, KeyRound, Database } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { SecretRow } from './SecretRow';
 import { AddSecretModal } from './AddSecretModal';
 import { ImportModal } from './ImportModal';
+import { SupabaseImportModal } from './SupabaseImportModal';
 
 function SkeletonRow() {
   return (
@@ -83,7 +85,10 @@ export function SecretsTab() {
     setImportOpen,
     addSecretOpen,
     importOpen,
+    fetchSecrets,
   } = useAppStore();
+
+  const [supabaseOpen, setSupabaseOpen] = useState(false);
 
   const environments = currentProject?.environments ?? [];
 
@@ -198,6 +203,43 @@ export function SecretsTab() {
             >
               <Upload size={14} />
               Import
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSupabaseOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '40px',
+                padding: '0 16px',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: '#a1a1b5',
+                backgroundColor: 'transparent',
+                border: '1px solid #2a2a3a',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'background-color 150ms ease, color 150ms ease',
+                whiteSpace: 'nowrap',
+                minWidth: '80px',
+              }}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.backgroundColor = 'rgba(62,207,142,0.08)';
+                btn.style.color = '#3ecf8e';
+                btn.style.borderColor = 'rgba(62,207,142,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.backgroundColor = 'transparent';
+                btn.style.color = '#a1a1b5';
+                btn.style.borderColor = '#2a2a3a';
+              }}
+            >
+              <Database size={14} />
+              Supabase
             </button>
 
             <button
@@ -331,6 +373,14 @@ export function SecretsTab() {
       {/* Modals rendered at tab level so they're accessible */}
       {addSecretOpen && <AddSecretModal />}
       {importOpen && <ImportModal />}
+      {supabaseOpen && currentProject && (
+        <SupabaseImportModal
+          projectId={currentProject.id}
+          environments={environments}
+          currentEnvSlug={activeEnv?.slug ?? 'dev'}
+          onClose={() => { setSupabaseOpen(false); fetchSecrets(); }}
+        />
+      )}
     </>
   );
 }

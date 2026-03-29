@@ -165,6 +165,12 @@ export const api = {
     run: (infiscalPassword?: string) =>
       post<{ imported: any; errors: string[] }>('/migration/run', { infiscalPassword }),
   },
+  supabase: {
+    listProjects: (accessToken: string) =>
+      post<any[]>('/supabase/projects', { accessToken }),
+    getKeys: (accessToken: string, projectRef: string) =>
+      post<Record<string, string>>('/supabase/keys', { accessToken, projectRef }),
+  },
 };
 
 // --- Process Streaming Types & Helper ---

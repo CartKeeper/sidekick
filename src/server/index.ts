@@ -10,6 +10,7 @@ import { exportRoutes } from './routes/export.js';
 import { processRoutes } from './routes/process.js';
 import { ProcessManager } from '../process/manager.js';
 import { migrationRoutes } from '../migration/api.js';
+import { supabaseRoutes } from './routes/supabase.js';
 import type Database from 'better-sqlite3';
 
 declare module 'fastify' {
@@ -47,6 +48,7 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
   await app.register(exportRoutes, { prefix: '/api' });
   await app.register(processRoutes, { prefix: '/api' });
   await app.register(migrationRoutes, { prefix: '/api' });
+  await app.register(supabaseRoutes, { prefix: '/api' });
 
   return app;
 }
