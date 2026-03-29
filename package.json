@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/electron/main.ts",
+  "main": "src/electron/main.cjs",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\" \"sleep 3 && npm run dev:electron\"",
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev:server\" \"npm run dev:web\"",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:web": "cd src/web && npx vite --port 5173",
-    "dev:electron": "electron src/electron/main.ts",
+    "dev:desktop": "concurrently -n web,electron -c green,magenta \"npm run dev:web\" \"sleep 2 && electron . --dev\"",
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest"
