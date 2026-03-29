@@ -16,6 +16,10 @@ interface AppState {
   secrets: Secret[];
   stats: Stats | null;
 
+  // Process
+  runningProcesses: any[];
+  processOutput: Map<string, string[]>;
+
   // UI
   loading: boolean;
   error: string | null;
@@ -41,6 +45,15 @@ interface AppState {
   setImportOpen: (open: boolean) => void;
   setEditingSecret: (secret: Secret | null) => void;
   clearError: () => void;
+
+  // Process actions
+  launchProject: (projectId: string) => Promise<void>;
+  stopProject: (projectId: string) => Promise<void>;
+  restartProject: (projectId: string) => Promise<void>;
+  killProcess: (processId: string) => Promise<void>;
+  appendOutput: (processId: string, data: string) => void;
+  handleProcessExit: (processId: string) => void;
+  fetchProcessStatus: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -57,6 +70,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentEnvId: null,
   secrets: [],
   stats: null,
+
+  // Process defaults
+  runningProcesses: [],
+  processOutput: new Map(),
 
   // UI defaults
   loading: false,
@@ -173,4 +190,81 @@ export const useAppStore = create<AppState>((set, get) => ({
   setImportOpen: (open) => set({ importOpen: open }),
   setEditingSecret: (secret) => set({ editingSecret: secret, addSecretOpen: !!secret }),
   clearError: () => set({ error: null }),
+
+  // Process actions
+  launchProject: async (projectId) => {
+    try {
+      const result = await api.process.launch(projectId);
+      if (result.processes) {
+        set((state) => ({
+          runningProcesses: [...state.runningProcesses, ...result.processes],
+        }));
+      }
+      get().fetchProjects(); // refresh to update running status
+    } catch (err: unknown) {
+      set({ error: err instanceof Error ? err.message : 'Launch failed' });
+    }
+  },
+
+  stopProject: async (projectId) => {
+    try {
+      await api.process.stop(projectId);
+      set((state) => ({
+        runningProcesses: state.runningProcesses.filter((p) => p.projectId !== projectId),
+      }));
+      get().fetchProjects();
+    } catch (err: unknown) {
+      set({ error: err instanceof Error ? err.message : 'Stop failed' });
+    }
+  },
+
+  restartProject: async (projectId) => {
+    try {
+      const result = await api.process.restart(projectId);
+      set((state) => ({
+        runningProcesses: [
+          ...state.runningProcesses.filter((p) => p.projectId !== projectId),
+          ...(result.processes || []),
+        ],
+      }));
+    } catch (err: unknown) {
+      set({ error: err instanceof Error ? err.message : 'Restart failed' });
+    }
+  },
+
+  killProcess: async (processId) => {
+    try {
+      await api.process.kill(processId);
+      set((state) => ({
+        runningProcesses: state.runningProcesses.filter((p) => p.id !== processId),
+      }));
+    } catch (err: unknown) {
+      set({ error: err instanceof Error ? err.message : 'Kill failed' });
+    }
+  },
+
+  appendOutput: (processId, data) => {
+    set((state) => {
+      const output = new Map(state.processOutput);
+      const existing = output.get(processId) || [];
+      output.set(processId, [...existing, data]);
+      return { processOutput: output };
+    });
+  },
+
+  handleProcessExit: (processId) => {
+    set((state) => ({
+      runningProcesses: state.runningProcesses.map((p) =>
+        p.id === processId ? { ...p, status: 'stopped' } : p
+      ),
+    }));
+    get().fetchProjects();
+  },
+
+  fetchProcessStatus: async () => {
+    try {
+      const processes = await api.process.status();
+      set({ runningProcesses: processes });
+    } catch {}
+  },
 }));

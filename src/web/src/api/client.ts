@@ -147,4 +147,60 @@ export const api = {
     import: (projectId: string, data: { env: string; format: string; content: string; overwrite?: boolean }) =>
       post<{ success: boolean; imported: number }>(`/projects/${projectId}/import`, data),
   },
+  process: {
+    launch: (projectId: string, environment?: string) =>
+      post<{ success: boolean; processes: any[] }>(`/process/launch/${projectId}`, { environment }),
+    stop: (projectId: string) =>
+      post<{ success: boolean }>(`/process/stop/${projectId}`),
+    restart: (projectId: string, environment?: string) =>
+      post<{ success: boolean; processes: any[] }>(`/process/restart/${projectId}`, { environment }),
+    kill: (processId: string) =>
+      post<{ success: boolean }>(`/process/kill/${processId}`),
+    status: () => get<any[]>('/process/status'),
+    projectStatus: (projectId: string) =>
+      get<{ running: boolean; processes: any[] }>(`/process/status/${projectId}`),
+  },
 };
+
+// --- Process Streaming Types & Helper ---
+
+export interface ProcessEvent {
+  processId: string;
+  data: string;
+  stream: 'stdout' | 'stderr';
+}
+
+export interface ProcessExitEvent {
+  processId: string;
+  code: number | null;
+  signal: string | null;
+}
+
+export function connectProcessStream(
+  onOutput: (event: ProcessEvent) => void,
+  onExit: (event: ProcessExitEvent) => void,
+  onInit?: (processes: any[]) => void
+): () => void {
+  const es = new EventSource('/api/process/output');
+
+  es.onmessage = (e) => {
+    try {
+      onOutput(JSON.parse(e.data));
+    } catch {}
+  };
+
+  es.addEventListener('exit', (e: any) => {
+    try {
+      onExit(JSON.parse(e.data));
+    } catch {}
+  });
+
+  es.addEventListener('init', (e: any) => {
+    try {
+      onInit?.(JSON.parse(e.data));
+    } catch {}
+  });
+
+  // Return cleanup function
+  return () => es.close();
+}

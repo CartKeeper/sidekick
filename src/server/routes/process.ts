@@ -3,8 +3,42 @@ import type { FastifyInstance } from 'fastify';
 import { decrypt } from '../../core/crypto.js';
 
 export async function processRoutes(app: FastifyInstance) {
-  // Vault lock guard
-  app.addHook('preHandler', async (_req, reply) => {
+  // GET /process/output — SSE stream for real-time process output
+  // No vault guard — long-lived connection, authenticated by being on localhost
+  app.get('/process/output', async (req, reply) => {
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    const onOutput = (data: { processId: string; data: string; stream: string }) => {
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const onExit = (data: { processId: string; code: number | null; signal: string | null }) => {
+      reply.raw.write(`event: exit\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    app.processManager.on('output', onOutput);
+    app.processManager.on('exit', onExit);
+
+    // Send initial state
+    const processes = app.processManager.getAll();
+    reply.raw.write(`event: init\ndata: ${JSON.stringify(processes)}\n\n`);
+
+    // Cleanup on client disconnect
+    req.raw.on('close', () => {
+      app.processManager.off('output', onOutput);
+      app.processManager.off('exit', onExit);
+    });
+  });
+
+  // Vault lock guard for all other routes
+  app.addHook('preHandler', async (req, reply) => {
+    // Skip the SSE route
+    if (req.url.endsWith('/process/output')) return;
     try {
       app.vault.requireKey();
     } catch {
