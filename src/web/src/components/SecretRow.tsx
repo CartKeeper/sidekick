@@ -147,8 +147,8 @@ export function SecretRow({ secret }: SecretRowProps) {
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          flexShrink: 0,
-          maxWidth: '280px',
+          minWidth: 0,
+          overflow: 'hidden',
         }}
       >
         <span

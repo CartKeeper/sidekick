@@ -169,7 +169,7 @@ export function SecretsTab() {
           </div>
 
           {/* Add + Import buttons */}
-          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setImportOpen(true)}
@@ -188,7 +188,7 @@ export function SecretsTab() {
                 cursor: 'pointer',
                 transition: 'background-color 150ms ease, color 150ms ease',
                 whiteSpace: 'nowrap',
-                minWidth: '80px',
+                minWidth: 0,
               }}
               onMouseEnter={(e) => {
                 const btn = e.currentTarget as HTMLButtonElement;
@@ -223,7 +223,7 @@ export function SecretsTab() {
                 cursor: 'pointer',
                 transition: 'background-color 150ms ease, color 150ms ease',
                 whiteSpace: 'nowrap',
-                minWidth: '80px',
+                minWidth: 0,
               }}
               onMouseEnter={(e) => {
                 const btn = e.currentTarget as HTMLButtonElement;
@@ -260,7 +260,7 @@ export function SecretsTab() {
                 cursor: 'pointer',
                 transition: 'background-color 150ms ease',
                 whiteSpace: 'nowrap',
-                minWidth: '80px',
+                minWidth: 0,
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#5558e6';

@@ -22,32 +22,15 @@ export function Sidebar() {
           overflow: 'hidden',
         }}
       >
-        {/* App title — sits below drag region */}
+        {/* App title — sits below drag region, clear of traffic lights */}
         <div
           className="no-drag"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '14px 16px 12px',
+            padding: '10px 16px',
             borderBottom: '1px solid #2a2a3a',
             flexShrink: 0,
           }}
         >
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(99,102,241,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Shield size={14} color="#6366f1" />
-          </div>
           <span
             style={{
               fontSize: '16px',
