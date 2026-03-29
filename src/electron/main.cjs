@@ -137,8 +137,8 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Blur = close panel in dock mode
   mainWindow.on('blur', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     if (dockMode && panelOpen) {
       panelOpen = false;
       const bounds = getDockBounds();
@@ -151,8 +151,8 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Send initial state once the page loads
   mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
   });
 }
@@ -161,8 +161,9 @@ function switchToDocked() {
   if (!mainWindow) return;
   dockMode = true;
   panelOpen = false;
-  // Must recreate window — can't change frame property on existing window
-  mainWindow.close();
+  const old = mainWindow;
+  mainWindow = null;
+  old.destroy();
   createWindow();
 }
 
@@ -170,8 +171,9 @@ function switchToDetached() {
   if (!mainWindow) return;
   dockMode = false;
   panelOpen = false;
-  // Must recreate window — can't change frame property on existing window
-  mainWindow.close();
+  const old = mainWindow;
+  mainWindow = null;
+  old.destroy();
   createWindow();
 }
 
