@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, PanelRightClose } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { connectProcessStream } from '../api/client';
 import { Sidebar } from './Sidebar';
@@ -144,6 +144,15 @@ function WelcomeDashboard() {
 export function Layout() {
   const { currentProjectId, fetchProjects, fetchStats } = useAppStore();
 
+  const handleDock = useCallback(() => {
+    if (window.sidekick?.switchToDocked) {
+      window.sidekick.switchToDocked();
+    } else {
+      // Browser fallback
+      useAppStore.getState().setDockMode(true);
+    }
+  }, []);
+
   // Load data when layout mounts (vault is unlocked)
   useEffect(() => {
     fetchProjects();
@@ -185,8 +194,44 @@ export function Layout() {
           flexShrink: 0,
           backgroundColor: '#12121a',
           borderBottom: '1px solid #2a2a3a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          paddingRight: '12px',
         }}
-      />
+      >
+        {/* Dock button — return to docked sidebar mode */}
+        <button
+          type="button"
+          className="no-drag"
+          title="Dock to screen edge"
+          onClick={handleDock}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#6b6b80',
+            transition: 'background-color 150ms ease, color 150ms ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
+            (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
+          }}
+        >
+          <PanelRightClose size={16} />
+        </button>
+      </div>
 
       {/* App body: sidebar + content */}
       <div

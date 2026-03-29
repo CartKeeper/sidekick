@@ -28,6 +28,11 @@ interface AppState {
   importOpen: boolean;
   editingSecret: Secret | null;
 
+  // Dock
+  dockMode: boolean;
+  panelOpen: boolean;
+  activeTab: string; // 'main' or a processId
+
   // Actions
   checkAuth: () => Promise<void>;
   setup: (password: string, enableKeychain: boolean) => Promise<void>;
@@ -45,6 +50,11 @@ interface AppState {
   setImportOpen: (open: boolean) => void;
   setEditingSecret: (secret: Secret | null) => void;
   clearError: () => void;
+
+  // Dock actions
+  setDockMode: (mode: boolean) => void;
+  setPanelOpen: (open: boolean) => void;
+  setActiveTab: (tab: string) => void;
 
   // Process actions
   launchProject: (projectId: string) => Promise<void>;
@@ -82,6 +92,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   addSecretOpen: false,
   importOpen: false,
   editingSecret: null,
+
+  // Dock defaults
+  dockMode: true,
+  panelOpen: false,
+  activeTab: 'main',
 
   // Auth actions
   checkAuth: async () => {
@@ -190,6 +205,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setImportOpen: (open) => set({ importOpen: open }),
   setEditingSecret: (secret) => set({ editingSecret: secret, addSecretOpen: !!secret }),
   clearError: () => set({ error: null }),
+
+  // Dock actions
+  setDockMode: (mode) => set({ dockMode: mode }),
+  setPanelOpen: (open) => set({ panelOpen: open }),
+  setActiveTab: (tab) => set({ activeTab: tab }),
 
   // Process actions
   launchProject: async (projectId) => {
