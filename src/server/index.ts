@@ -7,12 +7,15 @@ import { authRoutes } from './routes/auth.js';
 import { projectRoutes } from './routes/projects.js';
 import { secretRoutes } from './routes/secrets.js';
 import { exportRoutes } from './routes/export.js';
+import { processRoutes } from './routes/process.js';
+import { ProcessManager } from '../process/manager.js';
 import type Database from 'better-sqlite3';
 
 declare module 'fastify' {
   interface FastifyInstance {
     db: Database.Database;
     vault: VaultState;
+    processManager: ProcessManager;
   }
 }
 
@@ -25,6 +28,7 @@ export interface AppConfig {
 export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance> {
   const db = getDb(config.dbPath);
   const vault = createVaultState();
+  const processManager = new ProcessManager();
 
   const app = Fastify({
     logger: config.logger ?? false,
@@ -34,11 +38,13 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
 
   app.decorate('db', db);
   app.decorate('vault', vault);
+  app.decorate('processManager', processManager);
 
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(projectRoutes, { prefix: '/api' });
   await app.register(secretRoutes, { prefix: '/api' });
   await app.register(exportRoutes, { prefix: '/api' });
+  await app.register(processRoutes, { prefix: '/api' });
 
   return app;
 }
