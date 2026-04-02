@@ -284,81 +284,85 @@ export async function projectRoutes(app: FastifyInstance) {
       .prepare('SELECT * FROM environments WHERE project_id = ? ORDER BY sort_order')
       .all(source.id) as any[];
 
-    app.db.transaction(() => {
-      // Insert the new project row, clearing supabase token fields
-      app.db
-        .prepare(
-          `INSERT INTO projects
-            (id, name, description, icon, color, path, start_commands, dev_url,
-             default_environment, enable_terminal, enable_vscode, enable_browser,
-             stack, sort_order, icon_path,
-             supabase_project_ref, supabase_last_sync,
-             supabase_token_encrypted, supabase_token_iv, supabase_token_auth_tag)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', NULL, NULL, NULL, NULL)`
-        )
-        .run(
-          newProjectId,
-          copyName,
-          source.description ?? '',
-          source.icon ?? '',
-          source.color ?? '#6366f1',
-          source.path ?? '',
-          source.start_commands ?? '[]',
-          source.dev_url ?? '',
-          source.default_environment ?? 'dev',
-          source.enable_terminal,
-          source.enable_vscode,
-          source.enable_browser,
-          source.stack ?? '[]',
-          source.sort_order,
-          source.icon_path ?? ''
-        );
-
-      // Copy environments and their secrets
-      for (const env of sourceEnvs) {
-        const newEnvId = newId();
+    try {
+      app.db.transaction(() => {
+        // Insert the new project row, clearing supabase token fields
         app.db
           .prepare(
-            'INSERT INTO environments (id, project_id, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)'
+            `INSERT INTO projects
+              (id, name, description, icon, color, path, start_commands, dev_url,
+               default_environment, enable_terminal, enable_vscode, enable_browser,
+               stack, sort_order, icon_path,
+               supabase_project_ref, supabase_last_sync,
+               supabase_token_encrypted, supabase_token_iv, supabase_token_auth_tag)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', NULL, NULL, NULL, NULL)`
           )
-          .run(newEnvId, newProjectId, env.name, env.slug, env.sort_order);
-
-        // Copy secrets: decrypt then re-encrypt with fresh IV
-        const secrets = app.db
-          .prepare('SELECT * FROM secrets WHERE environment_id = ?')
-          .all(env.id) as any[];
-
-        for (const secret of secrets) {
-          const plaintext = decrypt(
-            { ciphertext: secret.value_encrypted, iv: secret.iv, authTag: secret.auth_tag },
-            vaultKey
+          .run(
+            newProjectId,
+            copyName,
+            source.description ?? '',
+            source.icon ?? '',
+            source.color ?? '#6366f1',
+            source.path ?? '',
+            source.start_commands ?? '[]',
+            source.dev_url ?? '',
+            source.default_environment ?? 'dev',
+            source.enable_terminal,
+            source.enable_vscode,
+            source.enable_browser,
+            source.stack ?? '[]',
+            source.sort_order,
+            source.icon_path ?? ''
           );
-          const { ciphertext, iv, authTag } = encrypt(plaintext, vaultKey);
+
+        // Copy environments and their secrets
+        for (const env of sourceEnvs) {
+          const newEnvId = newId();
           app.db
             .prepare(
-              `INSERT INTO secrets
-                (id, environment_id, key, value_encrypted, iv, auth_tag, type, notes, source)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              'INSERT INTO environments (id, project_id, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)'
             )
-            .run(
-              newId(),
-              newEnvId,
-              secret.key,
-              ciphertext,
-              iv,
-              authTag,
-              secret.type ?? 'generic',
-              secret.notes ?? '',
-              secret.source ?? 'manual'
-            );
-        }
-      }
-    })();
+            .run(newEnvId, newProjectId, env.name, env.slug, env.sort_order);
 
-    logAudit(app.db, 'duplicated', 'project', newProjectId, copyName, {
-      sourceId: source.id,
-      sourceName: source.name,
-    });
+          // Copy secrets: decrypt then re-encrypt with fresh IV
+          const secrets = app.db
+            .prepare('SELECT * FROM secrets WHERE environment_id = ?')
+            .all(env.id) as any[];
+
+          for (const secret of secrets) {
+            const plaintext = decrypt(
+              { ciphertext: secret.value_encrypted, iv: secret.iv, authTag: secret.auth_tag },
+              vaultKey
+            );
+            const { ciphertext, iv, authTag } = encrypt(plaintext, vaultKey);
+            app.db
+              .prepare(
+                `INSERT INTO secrets
+                  (id, environment_id, key, value_encrypted, iv, auth_tag, type, notes, source)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              )
+              .run(
+                newId(),
+                newEnvId,
+                secret.key,
+                ciphertext,
+                iv,
+                authTag,
+                secret.type ?? 'generic',
+                secret.notes ?? '',
+                secret.source ?? 'manual'
+              );
+          }
+        }
+
+        logAudit(app.db, 'duplicated', 'project', newProjectId, copyName, {
+          sourceId: source.id,
+          sourceName: source.name,
+        });
+      })();
+    } catch {
+      return reply.status(500).send({ error: 'Failed to duplicate project' });
+    }
 
     // Return the new project in the same shape as GET /projects/:id
     const newProject = app.db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId) as any;
