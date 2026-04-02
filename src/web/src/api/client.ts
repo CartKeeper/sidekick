@@ -1,9 +1,14 @@
 const BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { ...options?.headers as Record<string, string> };
+  // Only set Content-Type when there's a body to send
+  if (options?.body) {
+    headers['Content-Type'] = 'application/json';
+  }
   const res = await fetch(`${BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -34,6 +39,7 @@ export interface Project {
   name: string;
   description: string;
   icon: string;
+  icon_path: string;
   color: string;
   path: string;
   start_commands: { name: string; command: string; path?: string }[];
@@ -68,9 +74,25 @@ export interface Secret {
   key: string;
   value?: string;
   type: string;
+  source: string;
   notes: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SupabaseStatus {
+  connected: boolean;
+  projectRef: string;
+  projectName: string;
+  region: string;
+  lastSync: string | null;
+}
+
+export interface SupabaseSyncResult {
+  updated: number;
+  unchanged: number;
+  conflicts: string[];
+  errors: string[];
 }
 
 export interface SearchResult {
@@ -118,6 +140,18 @@ export const api = {
     create: (data: Partial<Project>) => post<Project>('/projects', data),
     update: (id: string, data: Partial<Project>) => put<Project>(`/projects/${id}`, data),
     archive: (id: string) => del<{ success: boolean }>(`/projects/${id}`),
+    duplicate: (id: string) =>
+      post<Project & { environments: Environment[] }>(`/projects/${id}/duplicate`),
+    uploadIcon: async (id: string, file: File): Promise<{ success: boolean; icon_path: string }> => {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${BASE}/projects/${id}/icon`, { method: 'POST', body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || res.statusText);
+      }
+      return res.json();
+    },
   },
   environments: {
     list: (projectId: string) => get<Environment[]>(`/projects/${projectId}/environments`),
@@ -168,8 +202,14 @@ export const api = {
   supabase: {
     listProjects: (accessToken: string) =>
       post<any[]>('/supabase/projects', { accessToken }),
-    getKeys: (accessToken: string, projectRef: string) =>
-      post<Record<string, string>>('/supabase/keys', { accessToken, projectRef }),
+    connect: (projectId: string, accessToken: string, supabaseProjectRef: string) =>
+      post<{ success: boolean; supabaseProject: any; sync: SupabaseSyncResult }>('/supabase/connect', { projectId, accessToken, supabaseProjectRef }),
+    disconnect: (projectId: string) =>
+      post<{ success: boolean }>(`/supabase/disconnect/${projectId}`),
+    sync: (projectId: string) =>
+      post<SupabaseSyncResult>(`/supabase/sync/${projectId}`),
+    status: (projectId: string) =>
+      get<SupabaseStatus>(`/supabase/status/${projectId}`),
   },
 };
 

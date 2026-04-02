@@ -44,6 +44,7 @@ interface AppState {
   selectEnvironment: (envId: string) => void;
   fetchSecrets: () => Promise<void>;
   fetchStats: () => Promise<void>;
+  duplicateProject: (id: string) => Promise<void>;
 
   setAddProjectOpen: (open: boolean) => void;
   setAddSecretOpen: (open: boolean) => void;
@@ -196,6 +197,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ stats });
     } catch {
       // non-critical
+    }
+  },
+
+  duplicateProject: async (id) => {
+    try {
+      const newProject = await api.projects.duplicate(id);
+      await get().fetchProjects();
+      await get().selectProject(newProject.id);
+    } catch (err: unknown) {
+      set({ error: err instanceof Error ? err.message : 'Duplicate failed' });
     }
   },
 
