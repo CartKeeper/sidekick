@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Copy, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { api, type Project } from '../api/client';
+import { ProjectIcon } from './ProjectIcon';
 
 interface ProjectCardProps {
   project: Project;
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const { currentProjectId, selectProject, fetchProjects } = useAppStore();
+  const { currentProjectId, selectProject, fetchProjects, duplicateProject } = useAppStore();
   const isActive = currentProjectId === project.id;
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const visibleTags = project.stack?.slice(0, 2) ?? [];
@@ -33,8 +35,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(false);
-    // Select project and the App will show ProjectDetail — user can use Settings tab
     selectProject(project.id);
+  };
+
+  const handleDuplicate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDuplicating(true);
+    setMenuOpen(false);
+    try {
+      await duplicateProject(project.id);
+    } finally {
+      setDuplicating(false);
+    }
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -99,31 +111,15 @@ export function ProjectCard({ project }: ProjectCardProps) {
             if (btn && !menuOpen) btn.style.opacity = '0';
           }}
         >
-          {/* Icon — colored dot if no emoji set */}
-          {project.icon && /\p{Emoji}/u.test(project.icon) ? (
-            <span
-              style={{
-                fontSize: '16px',
-                lineHeight: 1,
-                flexShrink: 0,
-                width: '24px',
-                textAlign: 'center',
-              }}
-            >
-              {project.icon}
-            </span>
-          ) : (
-            <div
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: project.color || '#6366f1',
-                flexShrink: 0,
-                marginLeft: '7px',
-              }}
-            />
-          )}
+          {/* Icon */}
+          <ProjectIcon
+            icon={project.icon}
+            iconPath={project.icon_path}
+            color={project.color}
+            name={project.name}
+            size={24}
+            borderRadius={6}
+          />
 
           {/* Name + metadata */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -269,6 +265,38 @@ export function ProjectCard({ project }: ProjectCardProps) {
           >
             <Pencil size={14} color="#a1a1b5" />
             Edit
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 10px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#e4e4ed',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: duplicating ? 'not-allowed' : 'pointer',
+              opacity: duplicating ? 0.6 : 1,
+              transition: 'background-color 150ms ease',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+            }}
+          >
+            <Copy size={14} color="#a1a1b5" />
+            {duplicating ? 'Duplicating...' : 'Duplicate'}
           </button>
 
           <button
