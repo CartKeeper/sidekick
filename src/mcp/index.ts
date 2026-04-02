@@ -232,6 +232,77 @@ server.tool(
   }
 );
 
+server.tool(
+  'duplicate_project',
+  'Duplicate a project including all environments and secrets',
+  { identifier: z.string().describe('Project name or ID') },
+  async ({ identifier }) => {
+    const vk = requireKey();
+    const project = findProject(identifier);
+    if (!project) return text(`Project "${identifier}" not found.`);
+
+    const d = db();
+
+    // Generate unique name
+    let copyName = `${project.name} (Copy)`;
+    let suffix = 2;
+    while (d.prepare('SELECT id FROM projects WHERE name = ?').get(copyName)) {
+      copyName = `${project.name} (Copy ${suffix++})`;
+    }
+
+    const newProjectId = newId();
+
+    d.transaction(() => {
+      d.prepare(
+        `INSERT INTO projects (id, name, description, icon, color, path, start_commands, dev_url,
+          default_environment, enable_terminal, enable_vscode, enable_browser, stack, sort_order, icon_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        newProjectId, copyName, project.description, project.icon, project.color,
+        project.path, project.start_commands, project.dev_url, project.default_environment,
+        project.enable_terminal, project.enable_vscode, project.enable_browser,
+        project.stack, project.sort_order, project.icon_path
+      );
+
+      const envs = d.prepare('SELECT * FROM environments WHERE project_id = ? ORDER BY sort_order')
+        .all(project.id) as any[];
+
+      for (const env of envs) {
+        const newEnvId = newId();
+        d.prepare('INSERT INTO environments (id, project_id, name, slug, sort_order) VALUES (?, ?, ?, ?, ?)')
+          .run(newEnvId, newProjectId, env.name, env.slug, env.sort_order);
+
+        const secrets = d.prepare('SELECT * FROM secrets WHERE environment_id = ?').all(env.id) as any[];
+        for (const secret of secrets) {
+          const plaintext = decrypt(
+            { ciphertext: secret.value_encrypted, iv: secret.iv, authTag: secret.auth_tag },
+            vk
+          );
+          const encrypted = encrypt(plaintext, vk);
+          d.prepare(
+            `INSERT INTO secrets (id, environment_id, key, value_encrypted, iv, auth_tag, type, notes, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            newId(), newEnvId, secret.key, encrypted.ciphertext, encrypted.iv,
+            encrypted.authTag, secret.type, secret.notes, secret.source
+          );
+        }
+      }
+
+      logAudit(d, 'duplicated_via_mcp', 'project', newProjectId, copyName, {
+        sourceId: project.id, sourceName: project.name,
+      });
+    })();
+
+    const envCount = d.prepare('SELECT COUNT(*) as c FROM environments WHERE project_id = ?').get(newProjectId) as any;
+    const secretCount = d.prepare(
+      'SELECT COUNT(*) as c FROM secrets s JOIN environments e ON s.environment_id = e.id WHERE e.project_id = ?'
+    ).get(newProjectId) as any;
+
+    return text(`Duplicated "${project.name}" → "${copyName}" (${envCount.c} environments, ${secretCount.c} secrets).`);
+  }
+);
+
 // ==================== SECRET TOOLS ====================
 
 server.tool(
