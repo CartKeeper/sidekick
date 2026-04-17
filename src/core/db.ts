@@ -1,10 +1,20 @@
 import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+
+// Single canonical location for all contexts (dev, packaged app, MCP server).
+// Keeping this in one place prevents divergence between the dev DB and the
+// packaged-app DB, which previously caused data loss on rebuild.
+const DEFAULT_DB_PATH = path.join(os.homedir(), 'Library', 'Application Support', 'Sidekick', 'sidekick.db');
+
+fs.mkdirSync(path.dirname(DEFAULT_DB_PATH), { recursive: true });
 
 const instances = new Map<string, Database.Database>();
 
 export function getDb(dbPath?: string): Database.Database {
-  const resolvedPath = dbPath ?? './data/sidekick.db';
+  const resolvedPath = dbPath ?? DEFAULT_DB_PATH;
 
   const existing = instances.get(resolvedPath);
   if (existing) return existing;
@@ -81,12 +91,37 @@ export function getDb(dbPath?: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
   `);
 
+  // Migrations — add columns that may not exist yet
+  const cols = db.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+  const colNames = new Set(cols.map((c) => c.name));
+  if (!colNames.has('icon_path')) {
+    db.exec("ALTER TABLE projects ADD COLUMN icon_path TEXT DEFAULT ''");
+  }
+  if (!colNames.has('supabase_project_ref')) {
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_project_ref TEXT DEFAULT ''");
+  }
+  if (!colNames.has('supabase_last_sync')) {
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_last_sync TEXT DEFAULT NULL");
+  }
+  if (!colNames.has('supabase_token_encrypted')) {
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_token_encrypted TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_token_iv TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_token_auth_tag TEXT DEFAULT NULL");
+  }
+
+  // Secrets source column
+  const secretCols = db.prepare("PRAGMA table_info(secrets)").all() as { name: string }[];
+  const secretColNames = new Set(secretCols.map((c) => c.name));
+  if (!secretColNames.has('source')) {
+    db.exec("ALTER TABLE secrets ADD COLUMN source TEXT DEFAULT 'manual'");
+  }
+
   instances.set(resolvedPath, db);
   return db;
 }
 
 export function closeDb(dbPath?: string): void {
-  const resolvedPath = dbPath ?? './data/sidekick.db';
+  const resolvedPath = dbPath ?? DEFAULT_DB_PATH;
   const db = instances.get(resolvedPath);
   if (db) {
     db.close();

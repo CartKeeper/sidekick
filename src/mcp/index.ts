@@ -13,7 +13,7 @@ const processManager = new ProcessManager();
 
 // --- Database ---
 function db() {
-  return getDb(); // uses default path: ./data/sidekick.db
+  return getDb();
 }
 
 // --- Auto-unlock via Keychain ---
