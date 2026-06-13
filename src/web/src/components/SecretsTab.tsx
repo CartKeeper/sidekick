@@ -10,7 +10,7 @@ import { Button, Input, Skeleton, EmptyState, cn } from './ui';
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border-default">
+    <div className="flex items-center gap-3 rounded-lg border border-border-default bg-abyss px-3 py-2.5">
       <div className="flex-1 flex flex-col gap-1.5">
         <Skeleton className="h-3.5 w-40 rounded-sm" />
         <Skeleton className="h-3 w-24 rounded-sm" />
@@ -216,13 +216,13 @@ export function SecretsTab() {
         </div>
 
         {/* Secrets list */}
-        <div className="bg-surface border border-border-default rounded-xl px-4 min-h-30">
+        <div className="bg-surface border border-border-default rounded-xl px-4 py-4 min-h-30">
           {loading ? (
-            <>
+            <div className="flex flex-col gap-2">
               <SkeletonRow />
               <SkeletonRow />
               <SkeletonRow />
-            </>
+            </div>
           ) : secrets.length === 0 ? (
             <EmptyState
               icon={KeyRound}
@@ -236,9 +236,11 @@ export function SecretsTab() {
               onAction={() => setAddSecretOpen(true)}
             />
           ) : (
-            secrets.map((secret) => (
-              <SecretRow key={secret.id} secret={secret} />
-            ))
+            <div className="flex flex-col gap-2">
+              {secrets.map((secret) => (
+                <SecretRow key={secret.id} secret={secret} />
+              ))}
+            </div>
           )}
         </div>
 

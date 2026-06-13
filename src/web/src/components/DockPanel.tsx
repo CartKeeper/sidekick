@@ -90,7 +90,7 @@ export function DockPanel({ activeTab }: DockPanelProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="shrink-0 h-full bg-void border-r border-border-default overflow-hidden flex flex-col relative"
+      className="shrink-0 h-full bg-void border-r border-border-default overflow-hidden flex flex-col relative shadow-lg"
       // COMPUTED: fixed 600px panel width stays inline — pixel value, not a token
       style={{ width: '600px' }}
     >

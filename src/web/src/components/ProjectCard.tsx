@@ -151,7 +151,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       {menuOpen && (
         <div
           ref={menuRef}
-          className="absolute top-full right-2 z-50 min-w-35 bg-surface border border-border-default rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] p-1 mt-0.5"
+          className="absolute top-full right-2 z-50 min-w-35 bg-surface border border-border-default rounded-lg shadow-md p-1 mt-0.5"
         >
           <button
             type="button"

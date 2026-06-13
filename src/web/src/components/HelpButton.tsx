@@ -116,7 +116,7 @@ export function HelpButton() {
         <div
           ref={panelRef}
           className="fixed bottom-[72px] right-6 z-[99] w-[280px] bg-surface border border-border-default
-                     rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden"
+                     rounded-xl shadow-lg overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">

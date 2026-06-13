@@ -33,7 +33,7 @@ export function SecretRow({ secret }: { secret: Secret }) {
   };
 
   return (
-    <div className="group py-2.5 border-b border-border-default transition-colors duration-150 hover:bg-white/[0.025]">
+    <div className="group rounded-lg border border-border-default bg-abyss px-3 py-2.5 transition-colors duration-150 hover:border-border-strong hover:bg-surface-hover">
       <div className="flex items-center gap-2">
         <span className="flex-1 min-w-0 truncate text-[13px] font-semibold text-text-primary">{secret.key}</span>
         <TypeBadge type={secret.type || 'generic'} />
