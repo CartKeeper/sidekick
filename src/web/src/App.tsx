@@ -206,6 +206,7 @@ function DockUnlockLayout() {
           className={cn(
             'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
             'border-transparent transition-colors duration-150',
+            'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
             panelOpen
               ? 'bg-accent-muted text-text-primary'
               : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary',
@@ -230,7 +231,7 @@ function DockUnlockLayout() {
           type="button"
           aria-label="Detach to window"
           onClick={handleUndock}
-          className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors duration-150"
+          className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
         >
           <Maximize2 size={20} />
         </button>

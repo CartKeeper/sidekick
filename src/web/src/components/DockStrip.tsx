@@ -35,6 +35,7 @@ function StripTab({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       data-tab-id={id}
       style={indicatorStyle}
@@ -42,6 +43,7 @@ function StripTab({
         'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
         'border-y-0 border-[unset] cursor-pointer relative',
         'transition-[background-color,color,border-color] duration-150',
+        'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
         active
           ? 'bg-accent/15 text-text-primary'
           : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary',

@@ -93,6 +93,7 @@ export function ImportModal() {
                     className={cn(
                       'h-8 px-3.5 text-[13px] font-semibold rounded-md cursor-pointer whitespace-nowrap',
                       'border transition-colors duration-150',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       active
                         ? 'text-accent bg-accent/10 border-accent/40'
                         : 'text-text-muted bg-transparent border-border-default hover:text-text-primary hover:bg-surface-hover',

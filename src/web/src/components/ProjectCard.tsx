@@ -78,7 +78,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         data-selected={isActive}
         data-item-id={project.id}
         onClick={() => selectProject(project.id)}
-        className="no-drag w-full text-left group cursor-pointer border-none bg-transparent p-0 font-[inherit]"
+        className="no-drag w-full text-left group cursor-pointer border-none bg-transparent p-0 font-[inherit] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
       >
         <div
           className={cn(
@@ -156,7 +156,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <button
             type="button"
             onClick={handleEdit}
-            className="w-full flex items-center gap-2 px-2.5 py-2 text-[13px] font-medium text-text-primary bg-transparent border-none rounded-md cursor-pointer text-left transition-colors duration-150 hover:bg-surface-hover"
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-[13px] font-medium text-text-primary bg-transparent border-none rounded-md cursor-pointer text-left transition-colors duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           >
             <Pencil size={14} className="text-text-secondary" />
             Edit
@@ -166,7 +166,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             type="button"
             onClick={handleDuplicate}
             disabled={duplicating}
-            className="w-full flex items-center gap-2 px-2.5 py-2 text-[13px] font-medium text-text-primary bg-transparent border-none rounded-md cursor-pointer text-left transition-colors duration-150 hover:bg-surface-hover disabled:opacity-60 disabled:pointer-events-none"
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-[13px] font-medium text-text-primary bg-transparent border-none rounded-md cursor-pointer text-left transition-colors duration-150 hover:bg-surface-hover disabled:opacity-60 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           >
             <Copy size={14} className="text-text-secondary" />
             {duplicating ? 'Duplicating…' : 'Duplicate'}
@@ -178,6 +178,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             disabled={deleting}
             className={cn(
               'w-full flex items-center gap-2 px-2.5 py-2 text-[13px] font-medium border-none rounded-md cursor-pointer text-left transition-[background-color,color] duration-150 disabled:opacity-60 disabled:pointer-events-none',
+              'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
               confirmDelete
                 ? 'bg-danger text-white hover:bg-danger'
                 : 'bg-transparent text-danger hover:bg-danger-muted',

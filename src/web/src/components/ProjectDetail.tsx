@@ -80,6 +80,7 @@ export function ProjectDetail() {
             className={cn(
               'h-8 px-3.5 text-[13px] border-none rounded-lg cursor-pointer whitespace-nowrap',
               'transition-[background-color,color] duration-150',
+              'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
               activeTab === tab.id
                 ? 'font-semibold text-text-primary bg-border-default'
                 : 'font-normal text-text-muted bg-transparent hover:text-text-secondary hover:bg-border-default/50',

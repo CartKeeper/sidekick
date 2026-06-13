@@ -38,10 +38,12 @@ function Toggle({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         onClick={() => onChange(!checked)}
         className={cn(
           'w-10 h-6 rounded-full border-0 cursor-pointer relative shrink-0 p-0',
           'transition-colors duration-150',
+          'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
           checked ? 'bg-accent' : 'bg-border-default',
         )}
       >
@@ -439,6 +441,7 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
                 'bg-warning-muted border border-warning/25 text-warning',
                 'hover:bg-warning-muted/70 hover:border-warning/45',
                 'transition-[background-color,border-color] duration-150',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
               )}
             >
               <Square size={16} />
@@ -455,6 +458,7 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
                 'bg-accent-muted border border-accent/25 text-accent',
                 'hover:bg-accent-muted/70 hover:border-accent/45',
                 'transition-[background-color,border-color] duration-150',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
               )}
             >
               <RefreshCw size={16} />
@@ -496,6 +500,7 @@ export function LaunchTab({ project, onUpdate }: LaunchTabProps) {
                       'h-8 px-3 text-[12px] font-semibold rounded-md shrink-0',
                       'flex items-center gap-1.5 whitespace-nowrap',
                       'transition-[color,border-color,background-color] duration-150',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       isActive
                         ? 'border border-accent bg-accent-muted text-accent'
                         : 'border border-border-default bg-transparent text-text-muted',

@@ -151,6 +151,7 @@ export function SecretsTab() {
                   className={cn(
                     'h-8 px-3.5 text-[13px] font-semibold rounded-lg border cursor-pointer whitespace-nowrap',
                     'transition-colors duration-150',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                     isActive
                       ? 'text-accent bg-accent-muted border-accent/40'
                       : 'text-text-muted bg-transparent border-border-default hover:bg-surface-hover hover:text-text-primary',
@@ -280,6 +281,7 @@ export function SecretsTab() {
                     'flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150',
                     'hover:bg-brand-supabase/8',
                     'disabled:opacity-60 disabled:pointer-events-none',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                   )}
                 >
                   <RefreshCw size={12} className={sbSyncing ? 'spin' : undefined} />
@@ -293,6 +295,7 @@ export function SecretsTab() {
                     'border border-border-default rounded-lg cursor-pointer',
                     'flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150',
                     'hover:bg-danger/8 hover:text-danger',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                   )}
                 >
                   <Unlink size={12} />
@@ -313,6 +316,7 @@ export function SecretsTab() {
                   'border border-brand-supabase/30 rounded-lg cursor-pointer',
                   'flex items-center gap-1.5 transition-colors duration-150',
                   'hover:bg-brand-supabase/8',
+                  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                 )}
               >
                 <Database size={12} />
@@ -373,6 +377,7 @@ export function SecretsTab() {
                     className={cn(
                       'flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer text-left w-full',
                       'transition-colors duration-150',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       sbSelectedRef === sp.id
                         ? 'bg-brand-supabase/8 border border-brand-supabase/40'
                         : 'bg-abyss border border-border-default hover:bg-surface-hover',

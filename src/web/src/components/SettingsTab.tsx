@@ -193,7 +193,8 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               }}
               className="h-7 px-2 text-[11px] font-semibold text-danger bg-transparent border border-danger/30
                          rounded-md cursor-pointer flex items-center gap-1
-                         hover:bg-danger/10 transition-colors duration-150"
+                         hover:bg-danger/10 transition-colors duration-150
+                         focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
               <XIcon size={10} />
               Remove
@@ -228,7 +229,8 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             onClick={() => fileInputRef.current?.click()}
             className="h-8 px-3 text-[12px] font-semibold text-text-secondary bg-surface border border-border-default
                        rounded-md cursor-pointer flex items-center gap-1.5
-                       hover:border-accent hover:text-text-primary transition-colors duration-150"
+                       hover:border-accent hover:text-text-primary transition-colors duration-150
+                       focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           >
             <Upload size={13} />
             Upload Logo
@@ -249,9 +251,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 setIcon(ic);
                 await saveField({ icon: ic }, 'icon');
               }}
+              aria-label={`Select icon ${ic}`}
               className={[
                 'w-9 h-9 text-[18px] rounded-lg flex items-center justify-center cursor-pointer',
                 'transition-colors duration-150',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                 icon === ic && !iconPath
                   ? 'border-2 border-accent bg-accent/15'
                   : 'border-2 border-transparent bg-surface',
@@ -294,9 +298,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 await saveField({ color: c }, 'color');
               }}
               title={c}
+              aria-label={`Select color ${c}`}
               style={{ backgroundColor: c }}
               className={[
                 'w-7 h-7 rounded-full cursor-pointer shrink-0 transition-[border-color] duration-150',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                 color === c ? 'border-[3px] border-text-primary' : 'border-[3px] border-transparent',
               ].join(' ')}
             />

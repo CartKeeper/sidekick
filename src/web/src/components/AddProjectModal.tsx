@@ -108,8 +108,10 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
                     key={ic}
                     type="button"
                     onClick={() => setIcon(ic)}
+                    aria-label={`Select icon ${ic}`}
                     className={cn(
                       'w-8 h-8 text-base rounded-md cursor-pointer transition-colors duration-150 border-2',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       icon === ic ? 'border-accent bg-accent/15' : 'border-transparent bg-border-default',
                     )}
                   >
@@ -217,8 +219,10 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
                   type="button"
                   onClick={() => setColor(c)}
                   title={c}
+                  aria-label={`Select color ${c}`}
                   className={cn(
                     'w-7 h-7 rounded-full cursor-pointer shrink-0 transition-[border-color] duration-150 border-[3px]',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                     color === c ? 'border-text-primary' : 'border-transparent',
                   )}
                   style={{ backgroundColor: c }}

@@ -125,6 +125,7 @@ export function PreferencesPanel() {
                     className={cn(
                       'flex-1 h-9.5 text-[13px] font-semibold rounded-md cursor-pointer capitalize',
                       'border transition-[background-color,color,border-color] duration-150',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       isActive
                         ? 'text-text-primary bg-accent/15 border-accent'
                         : 'text-text-muted bg-void border-border-default hover:bg-surface-hover hover:text-text-primary',
