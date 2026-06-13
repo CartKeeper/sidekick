@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { FolderOpen, AlertTriangle, Loader2, Upload, X as XIcon } from 'lucide-react';
+import { FolderOpen, AlertTriangle, Upload, X as XIcon } from 'lucide-react';
 import { api, type Project, type Environment } from '../api/client';
 import { useAppStore } from '../stores/app';
+import { Button, Input, Textarea, Spinner } from './ui';
 
 const PRESET_COLORS = [
   '#6366f1',
@@ -25,44 +26,18 @@ interface SettingsTabProps {
 function SavedIndicator({ show }: { show: boolean }) {
   return (
     <span
+      className="text-success font-semibold transition-opacity duration-300"
       style={{
         fontSize: '11px',
-        fontWeight: 600,
-        color: '#22c55e',
-        opacity: show ? 1 : 0,
-        transition: 'opacity 300ms ease',
         letterSpacing: '0.03em',
         marginLeft: '8px',
+        opacity: show ? 1 : 0,
       }}
     >
       Saved
     </span>
   );
 }
-
-const sectionLabel: React.CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 600,
-  color: '#a1a1b5',
-  letterSpacing: '0.05em',
-  textTransform: 'uppercase',
-  marginBottom: '6px',
-  display: 'block',
-};
-
-const inputStyle: React.CSSProperties = {
-  height: '40px',
-  padding: '0 12px',
-  fontSize: '14px',
-  color: '#e4e4ed',
-  backgroundColor: '#12121a',
-  border: '1px solid #2a2a3a',
-  borderRadius: '8px',
-  outline: 'none',
-  boxSizing: 'border-box',
-  width: '100%',
-  transition: 'border-color 150ms ease',
-};
 
 export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const { fetchProjects, selectProject } = useAppStore();
@@ -129,15 +104,15 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="flex flex-col gap-6">
 
       {/* Name */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Name
           <SavedIndicator show={savedField === 'name'} />
         </label>
-        <input
+        <Input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -147,17 +122,16 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             }
           }}
           placeholder="Project name"
-          style={inputStyle}
         />
       </div>
 
       {/* Description */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Description
           <SavedIndicator show={savedField === 'description'} />
         </label>
-        <textarea
+        <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={async () => {
@@ -167,36 +141,21 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           }}
           placeholder="Optional description"
           rows={3}
-          style={{
-            ...inputStyle,
-            height: 'auto',
-            padding: '10px 12px',
-            resize: 'vertical',
-            lineHeight: '1.5',
-            minHeight: '80px',
-          }}
         />
       </div>
 
       {/* Path */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Project Path
           <SavedIndicator show={savedField === 'path'} />
         </label>
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <FolderOpen
             size={14}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#6b6b80',
-              pointerEvents: 'none',
-            }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
           />
-          <input
+          <Input
             type="text"
             value={path}
             onChange={(e) => setPath(e.target.value)}
@@ -206,36 +165,25 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               }
             }}
             placeholder="/path/to/project"
-            style={{
-              ...inputStyle,
-              fontFamily: 'var(--font-mono, monospace)',
-              paddingLeft: '34px',
-            }}
+            className="font-mono pl-8"
           />
         </div>
       </div>
 
       {/* Icon */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Icon
           <SavedIndicator show={savedField === 'icon'} />
         </label>
 
         {/* Current icon preview */}
         {iconPath && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <div className="flex items-center gap-3 mb-3">
             <img
               src={`/api/projects/icon/${iconPath.split('/').pop()}`}
               alt="Project icon"
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                objectFit: 'cover',
-                border: '2px solid #6366f1',
-                backgroundColor: '#1a1a25',
-              }}
+              className="w-12 h-12 rounded-xl object-cover border-2 border-accent bg-surface"
             />
             <button
               type="button"
@@ -243,27 +191,9 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 setIconPath('');
                 await saveField({ icon_path: '' }, 'icon');
               }}
-              style={{
-                height: '28px',
-                padding: '0 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                color: '#f38ba8',
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(243,139,168,0.3)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'background-color 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(243,139,168,0.08)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
+              className="h-7 px-2 text-[11px] font-semibold text-danger bg-transparent border border-danger/30
+                         rounded-md cursor-pointer flex items-center gap-1
+                         hover:bg-danger/10 transition-colors duration-150"
             >
               <XIcon size={10} />
               Remove
@@ -272,12 +202,12 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
         )}
 
         {/* Upload button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <div className="flex items-center gap-2 mb-3">
           <input
             ref={fileInputRef}
             type="file"
             accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            style={{ display: 'none' }}
+            className="hidden"
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -296,41 +226,21 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              height: '32px',
-              padding: '0 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#a1a1b5',
-              backgroundColor: '#1a1a25',
-              border: '1px solid #2a2a3a',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'border-color 150ms ease, color 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#6366f1';
-              e.currentTarget.style.color = '#e4e4ed';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#2a2a3a';
-              e.currentTarget.style.color = '#a1a1b5';
-            }}
+            className="h-8 px-3 text-[12px] font-semibold text-text-secondary bg-surface border border-border-default
+                       rounded-md cursor-pointer flex items-center gap-1.5
+                       hover:border-accent hover:text-text-primary transition-colors duration-150"
           >
             <Upload size={13} />
             Upload Logo
           </button>
-          <span style={{ fontSize: '11px', color: '#585b70' }}>PNG, JPG, WebP, SVG</span>
+          <span className="text-[11px] text-text-muted">PNG, JPG, WebP, SVG</span>
         </div>
 
         {/* Emoji presets */}
-        <p style={{ fontSize: '12px', color: '#6b6b80', marginBottom: '6px' }}>
+        <p className="text-[12px] text-text-muted mb-1.5">
           Or choose an emoji:
         </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <div className="flex flex-wrap gap-1.5">
           {PRESET_ICONS.map((ic) => (
             <button
               key={ic}
@@ -339,28 +249,22 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 setIcon(ic);
                 await saveField({ icon: ic }, 'icon');
               }}
-              style={{
-                width: '36px',
-                height: '36px',
-                fontSize: '18px',
-                borderRadius: '8px',
-                border: icon === ic && !iconPath ? '2px solid #6366f1' : '2px solid transparent',
-                backgroundColor: icon === ic && !iconPath ? 'rgba(99,102,241,0.15)' : '#1a1a25',
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className={[
+                'w-9 h-9 text-[18px] rounded-lg flex items-center justify-center cursor-pointer',
+                'transition-colors duration-150',
+                icon === ic && !iconPath
+                  ? 'border-2 border-accent bg-accent/15'
+                  : 'border-2 border-transparent bg-surface',
+              ].join(' ')}
             >
               {ic}
             </button>
           ))}
         </div>
-        <p style={{ fontSize: '12px', color: '#6b6b80', marginTop: '6px' }}>
+        <p className="text-[12px] text-text-muted mt-1.5">
           Custom emoji:
         </p>
-        <input
+        <Input
           type="text"
           value={icon}
           onChange={(e) => setIcon(e.target.value)}
@@ -370,17 +274,17 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             }
           }}
           placeholder="📁"
-          style={{ ...inputStyle, width: '80px' }}
+          className="w-20"
         />
       </div>
 
       {/* Color */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Color
           <SavedIndicator show={savedField === 'color'} />
         </label>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="flex gap-2 flex-wrap">
           {PRESET_COLORS.map((c) => (
             <button
               key={c}
@@ -390,16 +294,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 await saveField({ color: c }, 'color');
               }}
               title={c}
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                backgroundColor: c,
-                border: color === c ? '3px solid #e4e4ed' : '3px solid transparent',
-                cursor: 'pointer',
-                transition: 'border-color 150ms ease',
-                flexShrink: 0,
-              }}
+              style={{ backgroundColor: c }}
+              className={[
+                'w-7 h-7 rounded-full cursor-pointer shrink-0 transition-[border-color] duration-150',
+                color === c ? 'border-[3px] border-text-primary' : 'border-[3px] border-transparent',
+              ].join(' ')}
             />
           ))}
         </div>
@@ -407,11 +306,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
 
       {/* Stack Tags */}
       <div>
-        <label style={sectionLabel}>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
           Stack Tags
           <SavedIndicator show={savedField === 'stack'} />
         </label>
-        <input
+        <Input
           type="text"
           value={stackInput}
           onChange={(e) => setStackInput(e.target.value)}
@@ -426,11 +325,10 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             }
           }}
           placeholder="node, react, postgres"
-          style={inputStyle}
         />
         {/* Tag pills preview */}
         {stackInput.trim() && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+          <div className="flex gap-1.5 flex-wrap mt-2">
             {stackInput
               .split(',')
               .map((s) => s.trim())
@@ -438,124 +336,62 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               .map((tag, i) => (
                 <span
                   key={i}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    height: '24px',
-                    padding: '0 8px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: '#a1a1b5',
-                    backgroundColor: '#2a2a3a',
-                    borderRadius: '6px',
-                    letterSpacing: '0.03em',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="inline-flex items-center h-6 px-2 text-[11px] font-semibold
+                             text-text-secondary bg-border-default rounded-md tracking-[0.03em] whitespace-nowrap"
                 >
                   {tag}
                 </span>
               ))}
           </div>
         )}
-        <p style={{ fontSize: '12px', color: '#6b6b80', marginTop: '6px' }}>
+        <p className="text-[12px] text-text-muted mt-1.5">
           Comma-separated tags
         </p>
       </div>
 
       {/* Danger Zone */}
-      <div
-        style={{
-          border: '1px solid rgba(239,68,68,0.3)',
-          borderRadius: '12px',
-          padding: '16px',
-          backgroundColor: 'rgba(239,68,68,0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <AlertTriangle size={14} color="#ef4444" />
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#ef4444',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
+      <div className="border border-danger/30 rounded-xl p-4 bg-danger/3">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle size={14} className="text-danger" />
+          <span className="text-[12px] font-semibold text-danger uppercase tracking-[0.05em]">
             Danger Zone
           </span>
         </div>
 
-        <p style={{ fontSize: '14px', color: '#a1a1b5', margin: '0 0 12px' }}>
+        <p className="text-[14px] text-text-secondary mb-3">
           This will hide the project from your list. You can unarchive it later.
         </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
+        <div className="flex items-center gap-3">
+          <Button
             type="button"
+            variant="danger"
+            size="sm"
+            loading={archiving}
             onClick={handleArchive}
-            disabled={archiving}
-            style={{
-              height: '36px',
-              padding: '0 16px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: archiveConfirm ? '#ffffff' : '#ef4444',
-              backgroundColor: archiveConfirm ? '#ef4444' : 'transparent',
-              border: '1px solid rgba(239,68,68,0.5)',
-              borderRadius: '8px',
-              cursor: archiving ? 'not-allowed' : 'pointer',
-              opacity: archiving ? 0.7 : 1,
-              transition: 'background-color 150ms ease, color 150ms ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              if (!archiving && !archiveConfirm) {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(239,68,68,0.1)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!archiving && !archiveConfirm) {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-              }
-            }}
+            className={archiveConfirm ? '' : 'bg-transparent text-danger border border-danger/50 hover:bg-danger hover:text-white'}
           >
             {archiving ? (
-              <>
-                <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
-                Archiving...
-              </>
+              'Archiving…'
             ) : archiveConfirm ? (
               'Confirm Archive'
             ) : (
               'Archive Project'
             )}
-          </button>
+          </Button>
           {archiveConfirm && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setArchiveConfirm(false)}
-              style={{
-                height: '36px',
-                padding: '0 12px',
-                fontSize: '13px',
-                color: '#6b6b80',
-                backgroundColor: 'transparent',
-                border: '1px solid #2a2a3a',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
         {archiveError && (
-          <p style={{ fontSize: '13px', color: '#f38ba8', marginTop: '8px' }}>
+          <p className="text-[13px] text-danger mt-2">
             {archiveError}
           </p>
         )}
