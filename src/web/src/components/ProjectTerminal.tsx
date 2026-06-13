@@ -63,7 +63,7 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             size="sm"
             title="Restart all"
             onClick={() => restartProject(projectId)}
-            className="text-[#89b4fa] hover:text-[#89b4fa] hover:border-[rgba(137,180,250,0.4)] hover:bg-[rgba(137,180,250,0.08)] border border-border-default"
+            className="text-accent hover:text-accent hover:border-accent/40 hover:bg-accent/10 border border-border-default"
           >
             <RefreshCw size={12} />
             Restart
@@ -77,7 +77,7 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             size="sm"
             title="Stop all processes"
             onClick={() => stopProject(projectId)}
-            className="text-danger hover:text-danger hover:border-[rgba(243,139,168,0.4)] hover:bg-[rgba(243,139,168,0.08)] border border-border-default"
+            className="text-danger hover:text-danger hover:border-danger/40 hover:bg-danger/10 border border-border-default"
           >
             <Square size={12} />
             Stop All
@@ -91,7 +91,7 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             size="sm"
             title="Launch project"
             onClick={() => launchProject(projectId)}
-            className="text-success hover:text-success hover:border-[rgba(166,227,161,0.4)] hover:bg-[rgba(166,227,161,0.08)] border border-border-default"
+            className="text-success hover:text-success hover:border-success/40 hover:bg-success/10 border border-border-default"
           >
             ▶ Launch
           </Button>
@@ -125,10 +125,10 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
                   className={cn(
                     'inline-block w-1.5 h-1.5 rounded-full shrink-0',
                     procRunning
-                      ? 'bg-[#a6e3a1] shadow-[0_0_4px_#a6e3a1]'
+                      ? 'bg-success shadow-[0_0_4px_var(--color-success)]'
                       : procCrashed
                         ? 'bg-danger'
-                        : 'bg-[#585b70]'
+                        : 'bg-text-muted'
                   )}
                 />
 
@@ -178,7 +178,7 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
                 : 'No start commands configured.'}
             </span>
             {project.start_commands && project.start_commands.length > 0 && (
-              <div className="text-[12px] text-[#585b70]">
+              <div className="text-[12px] text-text-muted">
                 {project.start_commands.map((cmd, i) => (
                   <div key={i}>{cmd.name || cmd.command}</div>
                 ))}

@@ -91,7 +91,7 @@ export function TerminalPanel({
   ) : isCrashed ? (
     <span className="w-2 h-2 rounded-full bg-danger shrink-0" />
   ) : (
-    <span className="w-2 h-2 rounded-full bg-[#585b70] shrink-0" />
+    <span className="w-2 h-2 rounded-full bg-text-muted shrink-0" />
   );
 
   const statusLabel = isRunning ? 'Running' : isCrashed ? 'Crashed' : 'Stopped';
@@ -131,7 +131,7 @@ export function TerminalPanel({
             variant="ghost"
             size="md"
             onClick={onStop}
-            className="border border-border-default hover:text-warning hover:border-[rgba(249,226,175,0.4)] hover:bg-[rgba(249,226,175,0.08)]"
+            className="border border-border-default hover:text-warning hover:border-warning/40 hover:bg-warning/10"
           >
             <Square size={12} />
           </IconButton>
@@ -145,7 +145,7 @@ export function TerminalPanel({
             variant="ghost"
             size="md"
             onClick={onRestart}
-            className="border border-border-default hover:text-[#89b4fa] hover:border-[rgba(137,180,250,0.4)] hover:bg-[rgba(137,180,250,0.08)]"
+            className="border border-border-default hover:text-accent hover:border-accent/40 hover:bg-accent/10"
           >
             <RefreshCw size={12} />
           </IconButton>
@@ -183,7 +183,7 @@ export function TerminalPanel({
         className="flex-1 overflow-y-auto p-3 font-mono text-[13px] leading-[1.4] text-[#cdd6f4] bg-void min-h-0"
       >
         {displayLines.length === 0 ? (
-          <span className="text-[#585b70]">Waiting for output…</span>
+          <span className="text-text-muted">Waiting for output…</span>
         ) : (
           displayLines.map((line, i) => (
             <div key={i} style={{ minHeight: '1em' }}>
@@ -203,7 +203,7 @@ export function TerminalPanel({
               const el = scrollRef.current;
               if (el) el.scrollTop = el.scrollHeight;
             }}
-            className="bg-none border-none cursor-pointer text-[11px] font-semibold text-[#89b4fa] tracking-[0.05em] uppercase py-0.5"
+            className="bg-none border-none cursor-pointer text-[11px] font-semibold text-accent tracking-[0.05em] uppercase py-0.5"
           >
             Resume auto-scroll ↓
           </button>
