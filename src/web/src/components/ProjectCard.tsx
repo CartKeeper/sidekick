@@ -126,19 +126,34 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </div>
           </div>
 
-          {/* Menu trigger — shows on hover or when open */}
+          {/* Menu trigger — shows on hover or when open.
+              role=button (not <button>) to avoid invalid nesting inside the card <button>. */}
           <div
             data-menu-trigger
+            role="button"
+            tabIndex={0}
+            aria-label="Project actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
             onClick={(e) => {
               e.stopPropagation();
               setMenuOpen(!menuOpen);
               setConfirmDelete(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+                setConfirmDelete(false);
+              }
             }}
             className={cn(
               'absolute right-2 top-1/2 -translate-y-1/2',
               'w-6 h-6 rounded-md flex items-center justify-center cursor-pointer',
               'text-text-secondary transition-[opacity,background-color] duration-150',
               'hover:bg-border-default',
+              'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 focus-visible:opacity-100',
               menuOpen ? 'opacity-100 bg-border-default' : 'opacity-0 group-hover:opacity-100',
             )}
           >

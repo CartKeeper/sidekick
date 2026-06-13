@@ -128,6 +128,7 @@ export function HelpButton() {
             </div>
             <button
               type="button"
+              aria-label="Close help"
               onClick={() => setOpen(false)}
               className="w-6 h-6 flex items-center justify-center bg-transparent border-none cursor-pointer
                          text-text-muted hover:text-text-primary rounded-md transition-colors duration-150
@@ -194,6 +195,7 @@ export function HelpButton() {
                 <button
                   type="button"
                   title="Copy to clipboard"
+                  aria-label="Copy MCP config"
                   onClick={() => {
                     navigator.clipboard.writeText(mcpConfig);
                     setCopied(true);

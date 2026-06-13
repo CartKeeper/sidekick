@@ -203,7 +203,7 @@ export function TerminalPanel({
               const el = scrollRef.current;
               if (el) el.scrollTop = el.scrollHeight;
             }}
-            className="bg-none border-none cursor-pointer text-[11px] font-semibold text-accent tracking-[0.05em] uppercase py-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+            className="bg-transparent border-none cursor-pointer text-[11px] font-semibold text-accent tracking-[0.05em] uppercase py-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           >
             Resume auto-scroll ↓
           </button>

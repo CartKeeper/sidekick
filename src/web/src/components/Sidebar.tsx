@@ -54,7 +54,7 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={() => setAddProjectOpen(true)}
-                className="text-[13px] font-semibold text-accent bg-none border-none cursor-pointer p-0
+                className="text-[13px] font-semibold text-accent bg-transparent border-none cursor-pointer p-0
                            hover:text-accent/80 transition-colors duration-150
                            focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1 rounded"
               >
