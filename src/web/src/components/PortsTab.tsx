@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { RefreshCw, X as XIcon, Search, Zap } from 'lucide-react';
+import { RefreshCw, X as XIcon, Search, Zap, Network } from 'lucide-react';
 import { api, type PortListener } from '../api/client';
+import { Button, IconButton, Input, EmptyState, Spinner, cn } from './ui';
 
 export function PortsTab() {
   const [listeners, setListeners] = useState<PortListener[]>([]);
@@ -56,146 +57,78 @@ export function PortsTab() {
   }, [listeners, filter]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '16px',
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: '20px',
-            fontWeight: 700,
-            color: '#e4e4ed',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Ports
-        </h1>
-        <span style={{ fontSize: '12px', color: '#6b6b80', fontWeight: 600 }}>
+      <div className="flex items-center gap-3 mb-4">
+        <h1 className="m-0 text-[20px] font-bold text-text-primary tracking-tight">Ports</h1>
+        <span className="text-[12px] font-semibold text-text-muted">
           {listeners.length} listener{listeners.length === 1 ? '' : 's'}
         </span>
-        <div style={{ flex: 1 }} />
-        <button
-          type="button"
-          onClick={refresh}
-          title="Refresh"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: '1px solid #2a2a3a',
-            backgroundColor: 'transparent',
-            color: '#a1a1b5',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <div className="flex-1" />
+        <IconButton aria-label="Refresh" onClick={refresh}>
           <RefreshCw size={14} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Search */}
-      <div
-        style={{
-          position: 'relative',
-          marginBottom: '12px',
-        }}
-      >
+      <div className="relative mb-3">
         <Search
           size={14}
-          color="#6b6b80"
-          style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+          className="text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
         />
         <input
           type="text"
           placeholder="Filter by port, PID, or command…"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          style={{
-            width: '100%',
-            height: '36px',
-            padding: '0 12px 0 34px',
-            fontSize: '13px',
-            color: '#e4e4ed',
-            backgroundColor: '#12121a',
-            border: '1px solid #2a2a3a',
-            borderRadius: '8px',
-            outline: 'none',
-          }}
+          className={cn(
+            'w-full h-9 pl-8 pr-3 text-[13px]',
+            'bg-abyss text-text-primary placeholder:text-text-muted',
+            'border border-border-default rounded-md',
+            'outline-none focus:border-accent focus:ring-1 focus:ring-accent',
+            'transition-colors duration-150',
+          )}
         />
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: '10px 12px',
-            marginBottom: '12px',
-            border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
-            fontSize: '13px',
-          }}
-        >
+        <div className="px-3 py-2.5 mb-3 border border-danger/30 rounded-md bg-danger-muted text-danger text-[13px]">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          border: '1px solid #2a2a3a',
-          borderRadius: '10px',
-          backgroundColor: '#12121a',
-        }}
-      >
+      <div className="flex-1 min-h-0 overflow-y-auto border border-border-default rounded-[10px] bg-abyss">
         {loading && listeners.length === 0 ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: '#6b6b80', fontSize: '13px' }}>
+          <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-text-muted">
+            <Spinner size={14} />
             Loading…
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: '#6b6b80', fontSize: '13px' }}>
-            {filter ? 'No listeners match your filter.' : 'No TCP listeners.'}
-          </div>
+          <EmptyState
+            icon={Network}
+            title={filter ? 'No listeners match your filter.' : 'No TCP listeners.'}
+          />
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr style={{ borderBottom: '1px solid #2a2a3a' }}>
+              <tr className="border-b border-border-default">
                 <Th>Port</Th>
                 <Th>PID</Th>
                 <Th>Command</Th>
                 <Th>User</Th>
-                <Th style={{ textAlign: 'right' }}>Actions</Th>
+                <Th className="text-right">Actions</Th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((l) => (
-                <tr key={l.pid} style={{ borderBottom: '1px solid #1e1e2a' }}>
+                <tr key={l.pid} className="border-b border-border-default/50">
                   <Td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <div className="flex flex-wrap gap-1">
                       {l.ports.map((p) => (
                         <span
                           key={p.port}
-                          style={{
-                            padding: '2px 8px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: '#a5b4fc',
-                            backgroundColor: 'rgba(99,102,241,0.12)',
-                            borderRadius: '6px',
-                            fontVariantNumeric: 'tabular-nums',
-                          }}
+                          className="px-2 py-0.5 text-[12px] font-semibold text-accent bg-accent-muted rounded-md tabular-nums"
                           title={`${p.address}:${p.port}`}
                         >
                           {p.port}
@@ -204,43 +137,44 @@ export function PortsTab() {
                     </div>
                   </Td>
                   <Td>
-                    <span style={{ color: '#a1a1b5', fontVariantNumeric: 'tabular-nums' }}>{l.pid}</span>
+                    <span className="text-text-secondary tabular-nums">{l.pid}</span>
                   </Td>
                   <Td>
-                    <div style={{ color: '#e4e4ed', fontWeight: 600 }}>{l.command}</div>
-                    <div
-                      style={{
-                        color: '#6b6b80',
-                        fontSize: '11px',
-                        marginTop: '2px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '460px',
-                      }}
-                      title={l.fullCommand}
-                    >
-                      {l.fullCommand}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-text-primary truncate">{l.command}</div>
+                      <div
+                        className="text-[11px] text-text-muted mt-0.5 truncate max-w-115"
+                        title={l.fullCommand}
+                      >
+                        {l.fullCommand}
+                      </div>
                     </div>
                   </Td>
                   <Td>
-                    <span style={{ color: '#6b6b80' }}>{l.user}</span>
+                    <span className="text-text-muted">{l.user}</span>
                   </Td>
-                  <Td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '6px' }}>
-                      <KillButton
-                        label="Kill"
-                        icon={<XIcon size={12} />}
+                  <Td className="text-right">
+                    <div className="inline-flex gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         disabled={busyPid === l.pid}
                         onClick={() => handleKill(l.pid, false)}
-                      />
-                      <KillButton
-                        label="Force"
-                        icon={<Zap size={12} />}
-                        disabled={busyPid === l.pid}
+                        className="h-6.5 px-2.5 text-[12px]"
+                      >
+                        <XIcon size={12} />
+                        Kill
+                      </Button>
+                      <Button
                         variant="danger"
+                        size="sm"
+                        disabled={busyPid === l.pid}
                         onClick={() => handleKill(l.pid, true)}
-                      />
+                        className="h-6.5 px-2.5 text-[12px]"
+                      >
+                        <Zap size={12} />
+                        Force
+                      </Button>
                     </div>
                   </Td>
                 </tr>
@@ -253,69 +187,21 @@ export function PortsTab() {
   );
 }
 
-function Th({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <th
-      style={{
-        textAlign: 'left',
-        padding: '10px 14px',
-        fontSize: '11px',
-        fontWeight: 600,
-        color: '#6b6b80',
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase',
-        ...style,
-      }}
+      className={cn(
+        'text-left px-3.5 py-2.5 text-[11px] font-semibold text-text-muted tracking-wider uppercase',
+        className,
+      )}
     >
       {children}
     </th>
   );
 }
 
-function Td({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <td style={{ padding: '10px 14px', verticalAlign: 'middle', ...style }}>{children}</td>
-  );
-}
-
-function KillButton({
-  label,
-  icon,
-  onClick,
-  disabled,
-  variant = 'default',
-}: {
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  variant?: 'default' | 'danger';
-}) {
-  const color = variant === 'danger' ? '#ef4444' : '#a1a1b5';
-  const border = variant === 'danger' ? 'rgba(239,68,68,0.3)' : '#2a2a3a';
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        height: '26px',
-        padding: '0 10px',
-        fontSize: '12px',
-        fontWeight: 600,
-        color,
-        backgroundColor: 'transparent',
-        border: `1px solid ${border}`,
-        borderRadius: '6px',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      {icon}
-      {label}
-    </button>
+    <td className={cn('px-3.5 py-2.5 align-middle', className)}>{children}</td>
   );
 }
