@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { LifeBuoy, X, Keyboard, FileText, Copy, Check, Cpu } from 'lucide-react';
+import { HelpCircle, X, Keyboard, FileText, Copy, Check, Cpu } from 'lucide-react';
+import { cn } from './ui';
 
 const APP_VERSION = '0.1.0';
 
@@ -70,48 +71,25 @@ export function HelpButton() {
   return (
     <>
       {/* Help button */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 100,
-        }}
-      >
+      <div className="fixed bottom-6 right-6 z-[100]">
         {/* Tooltip */}
         {tooltip && !open && (
           <div
-            style={{
-              position: 'absolute',
-              bottom: 'calc(100% + 8px)',
-              right: 0,
-              backgroundColor: '#2a2a3a',
-              border: '1px solid #3a3a4a',
-              borderRadius: '8px',
-              padding: '5px 10px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#a1a1b5',
-              whiteSpace: 'nowrap',
-              pointerEvents: 'none',
-            }}
+            className="absolute bottom-[calc(100%+8px)] right-0 bg-surface border border-border-strong
+                       rounded-lg px-2.5 py-1 text-[12px] font-semibold text-text-secondary
+                       whitespace-nowrap pointer-events-none"
           >
-            Help & Shortcuts
+            Help &amp; Shortcuts
             <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                right: '14px',
-                width: 0,
-                height: 0,
-                borderLeft: '5px solid transparent',
-                borderRight: '5px solid transparent',
-                borderTop: '5px solid #3a3a4a',
-              }}
+              className="absolute top-full right-3.5 w-0 h-0
+                         border-l-[5px] border-l-transparent
+                         border-r-[5px] border-r-transparent
+                         border-t-[5px] border-t-border-strong"
             />
           </div>
         )}
 
+        {/* Bare HelpCircle button — no filled bubble, just icon in thin circle outline */}
         <button
           ref={btnRef}
           type="button"
@@ -122,21 +100,16 @@ export function HelpButton() {
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '9999px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: open ? 'rgba(99,102,241,0.15)' : 'transparent',
-            border: open ? '1px solid rgba(99,102,241,0.4)' : '1px solid #2a2a3a',
-            color: open ? '#6366f1' : '#6b6b80',
-            cursor: 'pointer',
-            transition: 'background-color 150ms ease, color 150ms ease, border-color 150ms ease',
-          }}
+          className={cn(
+            'w-10 h-10 rounded-full flex items-center justify-center cursor-pointer',
+            'transition-[background-color,color,border-color] duration-150',
+            'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+            open
+              ? 'bg-accent/15 border border-accent/40 text-accent'
+              : 'bg-transparent border border-border-default text-text-muted hover:text-text-primary',
+          )}
         >
-          <LifeBuoy size={18} />
+          <HelpCircle size={18} />
         </button>
       </div>
 
@@ -144,110 +117,53 @@ export function HelpButton() {
       {open && (
         <div
           ref={panelRef}
-          style={{
-            position: 'fixed',
-            bottom: '72px',
-            right: '24px',
-            zIndex: 99,
-            width: '280px',
-            backgroundColor: '#1a1a25',
-            border: '1px solid #2a2a3a',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            overflow: 'hidden',
-          }}
+          className="fixed bottom-[72px] right-6 z-[99] w-[280px] bg-surface border border-border-default
+                     rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden"
         >
           {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              borderBottom: '1px solid #2a2a3a',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <LifeBuoy size={16} color="#6366f1" />
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4ed' }}>
-                Help & Shortcuts
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+            <div className="flex items-center gap-2">
+              <HelpCircle size={16} className="text-accent" />
+              <span className="text-[14px] font-semibold text-text-primary">
+                Help &amp; Shortcuts
               </span>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              style={{
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#6b6b80',
-                borderRadius: '6px',
-                transition: 'color 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
-              }}
+              className="w-6 h-6 flex items-center justify-center bg-transparent border-none cursor-pointer
+                         text-text-muted hover:text-text-primary rounded-md transition-colors duration-150
+                         focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Keyboard shortcuts */}
-          <div style={{ padding: '12px 16px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <Keyboard size={13} color="#6b6b80" />
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#6b6b80',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                }}
-              >
+          <div className="px-4 pt-3">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <Keyboard size={13} className="text-text-muted" />
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.05em]">
                 Keyboard Shortcuts
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="flex flex-col gap-1">
               {SHORTCUTS.map((sc, i) => (
                 <div
                   key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '5px 0',
-                    borderBottom: i < SHORTCUTS.length - 1 ? '1px solid rgba(42,42,58,0.6)' : undefined,
-                  }}
+                  className={cn(
+                    'flex items-center justify-between py-[5px]',
+                    i < SHORTCUTS.length - 1 ? 'border-b border-border-default/60' : undefined,
+                  )}
                 >
-                  <span style={{ fontSize: '13px', color: '#a1a1b5' }}>{sc.description}</span>
-                  <div style={{ display: 'flex', gap: '3px' }}>
+                  <span className="text-[13px] text-text-secondary">{sc.description}</span>
+                  <div className="flex gap-[3px]">
                     {sc.keys.map((k, ki) => (
                       <kbd
                         key={ki}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          minWidth: '22px',
-                          height: '20px',
-                          padding: '0 5px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          fontFamily: 'var(--font-mono, monospace)',
-                          color: '#a1a1b5',
-                          backgroundColor: '#2a2a3a',
-                          border: '1px solid #3a3a4a',
-                          borderRadius: '4px',
-                        }}
+                        className="inline-flex items-center justify-center min-w-[22px] h-5 px-[5px]
+                                   text-[11px] font-semibold font-mono text-text-secondary
+                                   bg-border-default border border-border-strong rounded"
                       >
                         {k}
                       </kbd>
@@ -259,40 +175,21 @@ export function HelpButton() {
           </div>
 
           {/* Claude / MCP Integration */}
-          <div style={{ padding: '12px 16px 0', borderTop: '1px solid #2a2a3a' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <Cpu size={13} color="#6b6b80" />
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#6b6b80',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                }}
-              >
+          <div className="px-4 pt-3 border-t border-border-default">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Cpu size={13} className="text-text-muted" />
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.05em]">
                 Claude / MCP Integration
               </span>
             </div>
-            <p style={{ fontSize: '12px', color: '#a1a1b5', margin: '0 0 8px', lineHeight: 1.4 }}>
+            <p className="text-[12px] text-text-secondary mb-2 leading-[1.4]">
               Add this to your Claude config to let Claude access your projects and secrets:
             </p>
             {mcpConfig && (
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <pre
-                  style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: '#a1a1b5',
-                    backgroundColor: '#0d0d14',
-                    border: '1px solid #2a2a3a',
-                    borderRadius: '8px',
-                    padding: '10px',
-                    margin: 0,
-                    overflowX: 'auto',
-                    lineHeight: 1.4,
-                    whiteSpace: 'pre',
-                  }}
+                  className="text-[11px] font-mono text-text-secondary bg-void border border-border-default
+                             rounded-lg p-2.5 m-0 overflow-x-auto leading-[1.4] whitespace-pre"
                 >
                   {mcpConfig}
                 </pre>
@@ -304,57 +201,32 @@ export function HelpButton() {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  style={{
-                    position: 'absolute',
-                    top: '6px',
-                    right: '6px',
-                    width: '24px',
-                    height: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#1a1a25',
-                    border: '1px solid #2a2a3a',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    color: copied ? '#a6e3a1' : '#6b6b80',
-                    transition: 'color 150ms ease',
-                  }}
+                  className={cn(
+                    'absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center',
+                    'bg-surface border border-border-default rounded-md cursor-pointer',
+                    'transition-colors duration-150',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1',
+                    copied ? 'text-success' : 'text-text-muted hover:text-text-primary',
+                  )}
                 >
                   {copied ? <Check size={12} /> : <Copy size={12} />}
                 </button>
               </div>
             )}
-            <p style={{ fontSize: '11px', color: '#585b70', margin: '6px 0 0', lineHeight: 1.4 }}>
+            <p className="text-[11px] text-text-muted mt-1.5 leading-[1.4]">
               Works with Claude Code, Claude Desktop, and any MCP client.
             </p>
           </div>
 
           {/* Footer: version */}
-          <div
-            style={{
-              padding: '12px 16px',
-              marginTop: '8px',
-              borderTop: '1px solid #2a2a3a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <FileText size={13} color="#6b6b80" />
-              <span style={{ fontSize: '12px', color: '#6b6b80' }}>
+          <div className="px-4 py-3 mt-2 border-t border-border-default flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <FileText size={13} className="text-text-muted" />
+              <span className="text-[12px] text-text-muted">
                 Documentation
               </span>
             </div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                color: '#3a3a4a',
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            >
+            <span className="text-[11px] font-semibold font-mono text-border-strong">
               v{APP_VERSION}
             </span>
           </div>
