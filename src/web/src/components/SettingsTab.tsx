@@ -3,6 +3,8 @@ import { FolderOpen, AlertTriangle, Upload, X as XIcon } from 'lucide-react';
 import { api, type Project, type Environment } from '../api/client';
 import { useAppStore } from '../stores/app';
 import { Button, Input, Textarea, Spinner } from './ui';
+import { ProjectIcon } from './ProjectIcon';
+import { PROJECT_ICONS } from '../lib/projectIcons';
 
 const PRESET_COLORS = [
   '#6366f1',
@@ -14,8 +16,6 @@ const PRESET_COLORS = [
   '#06b6d4',
   '#3b82f6',
 ];
-
-const PRESET_ICONS = ['📁', '🚀', '🔐', '⚙️', '🌐', '📦', '🗄️', '💻', '🔧', '⚡'];
 
 interface SettingsTabProps {
   project: Project & { environments: Environment[] };
@@ -45,11 +45,12 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const [name, setName] = useState(project.name ?? '');
   const [description, setDescription] = useState(project.description ?? '');
   const [path, setPath] = useState(project.path ?? '');
-  const [icon, setIcon] = useState(project.icon ?? '📁');
+  const [icon, setIcon] = useState(project.icon ?? '');
   const [color, setColor] = useState(project.color ?? PRESET_COLORS[0]);
   const [stackInput, setStackInput] = useState((project.stack ?? []).join(', '));
   const [savedField, setSavedField] = useState<string | null>(null);
   const [iconPath, setIconPath] = useState(project.icon_path ?? '');
+  const [includeInToolbar, setIncludeInToolbar] = useState(project.include_in_toolbar !== false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -62,10 +63,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
     setName(project.name ?? '');
     setDescription(project.description ?? '');
     setPath(project.path ?? '');
-    setIcon(project.icon ?? '📁');
+    setIcon(project.icon ?? '');
     setIconPath(project.icon_path ?? '');
     setColor(project.color ?? PRESET_COLORS[0]);
     setStackInput((project.stack ?? []).join(', '));
+    setIncludeInToolbar(project.include_in_toolbar !== false);
   }, [project.id]);
 
   const showSaved = (field: string) => {
@@ -105,6 +107,33 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+
+      {/* Toolbar visibility */}
+      <div>
+        <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-[0.05em] mb-1.5">
+          Toolbar
+          <SavedIndicator show={savedField === 'include_in_toolbar'} />
+        </label>
+        <label className="flex items-start gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeInToolbar}
+            onChange={async (e) => {
+              const next = e.target.checked;
+              setIncludeInToolbar(next);
+              await saveField({ include_in_toolbar: next }, 'include_in_toolbar');
+            }}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded accent-accent cursor-pointer
+                       focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+          />
+          <span>
+            <span className="block text-[13px] font-medium text-text-primary">Include in toolbar</span>
+            <span className="block text-[12px] text-text-muted leading-normal">
+              Show this project in the docked toolbar strip. Turn off to keep old or rarely-used projects out of the dock.
+            </span>
+          </span>
+        </label>
+      </div>
 
       {/* Name */}
       <div>
@@ -177,109 +206,88 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           <SavedIndicator show={savedField === 'icon'} />
         </label>
 
-        {/* Current icon preview */}
-        {iconPath && (
-          <div className="flex items-center gap-3 mb-3">
-            <img
-              src={`/api/projects/icon/${iconPath.split('/').pop()}`}
-              alt="Project icon"
-              className="w-12 h-12 rounded-xl object-cover border-2 border-accent bg-surface"
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                setIconPath('');
-                await saveField({ icon_path: '' }, 'icon');
-              }}
-              className="h-7 px-2 text-[11px] font-semibold text-danger bg-transparent border border-danger/30
-                         rounded-md cursor-pointer flex items-center gap-1
-                         hover:bg-danger/10 transition-colors duration-150
-                         focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-            >
-              <XIcon size={10} />
-              Remove
-            </button>
-          </div>
-        )}
-
-        {/* Upload button */}
-        <div className="flex items-center gap-2 mb-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              try {
-                const result = await api.projects.uploadIcon(project.id, file);
-                setIconPath(result.icon_path);
-                showSaved('icon');
-                onUpdate();
-              } catch (err: unknown) {
-                console.error('Icon upload failed:', err);
-              }
-              // Reset input so re-uploading the same file triggers onChange
-              if (fileInputRef.current) fileInputRef.current.value = '';
-            }}
+        {/* Live preview + upload (uniform row) */}
+        <div className="flex items-center gap-3.5 mb-4">
+          <ProjectIcon
+            icon={icon}
+            iconPath={iconPath}
+            color={color}
+            name={name || project.name}
+            size={52}
+            borderRadius={12}
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-8 px-3 text-[12px] font-semibold text-text-secondary bg-surface border border-border-default
-                       rounded-md cursor-pointer flex items-center gap-1.5
-                       hover:border-accent hover:text-text-primary transition-colors duration-150
-                       focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-          >
-            <Upload size={13} />
-            Upload Logo
-          </button>
-          <span className="text-[11px] text-text-muted">PNG, JPG, WebP, SVG</span>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const result = await api.projects.uploadIcon(project.id, file);
+                    setIconPath(result.icon_path);
+                    showSaved('icon');
+                    onUpdate();
+                  } catch (err: unknown) {
+                    console.error('Icon upload failed:', err);
+                  }
+                  // Reset input so re-uploading the same file triggers onChange
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+              />
+              <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={13} />
+                Upload Image
+              </Button>
+              {iconPath && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    setIconPath('');
+                    await saveField({ icon_path: '' }, 'icon');
+                  }}
+                  className="text-danger hover:text-danger hover:bg-danger/10 hover:border-danger/40"
+                >
+                  <XIcon size={12} />
+                  Remove
+                </Button>
+              )}
+            </div>
+            <span className="text-[11px] text-text-muted">PNG, JPG, WebP, or SVG</span>
+          </div>
         </div>
 
-        {/* Emoji presets */}
-        <p className="text-[12px] text-text-muted mb-1.5">
-          Or choose an emoji:
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {PRESET_ICONS.map((ic) => (
+        {/* Icon presets */}
+        <p className="text-[12px] text-text-muted mb-2">Or choose an icon:</p>
+        <div className="grid grid-cols-8 gap-1.5 max-w-90">
+          {PROJECT_ICONS.map(({ name, Icon }) => (
             <button
-              key={ic}
+              key={name}
               type="button"
               onClick={async () => {
-                setIcon(ic);
-                await saveField({ icon: ic }, 'icon');
+                setIcon(name);
+                await saveField({ icon: name }, 'icon');
               }}
-              aria-label={`Select icon ${ic}`}
+              aria-label={`Select ${name} icon`}
+              aria-pressed={icon === name && !iconPath}
               className={[
-                'w-9 h-9 text-[18px] rounded-lg flex items-center justify-center cursor-pointer',
+                'w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer',
                 'transition-colors duration-150',
                 'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
-                icon === ic && !iconPath
-                  ? 'border-2 border-accent bg-accent/15'
-                  : 'border-2 border-transparent bg-surface',
+                icon === name && !iconPath
+                  ? 'border-2 border-accent bg-accent/15 text-accent'
+                  : 'border-2 border-transparent bg-surface text-text-secondary hover:text-text-primary',
               ].join(' ')}
             >
-              {ic}
+              <Icon size={17} />
             </button>
           ))}
         </div>
-        <p className="text-[12px] text-text-muted mt-1.5">
-          Custom emoji:
-        </p>
-        <Input
-          type="text"
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          onBlur={async () => {
-            if (icon !== project.icon) {
-              await saveField({ icon: icon.trim() || '📁' }, 'icon');
-            }
-          }}
-          placeholder="📁"
-          className="w-20"
-        />
       </div>
 
       {/* Color */}

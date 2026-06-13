@@ -61,6 +61,7 @@ export async function projectRoutes(app: FastifyInstance) {
       enable_terminal: Boolean(p.enable_terminal),
       enable_vscode: Boolean(p.enable_vscode),
       enable_browser: Boolean(p.enable_browser),
+      include_in_toolbar: p.include_in_toolbar == null ? true : Boolean(p.include_in_toolbar),
     }));
   });
 
@@ -87,6 +88,7 @@ export async function projectRoutes(app: FastifyInstance) {
       enable_terminal: Boolean(project.enable_terminal),
       enable_vscode: Boolean(project.enable_vscode),
       enable_browser: Boolean(project.enable_browser),
+      include_in_toolbar: project.include_in_toolbar == null ? true : Boolean(project.include_in_toolbar),
       environments,
     };
   });
@@ -200,6 +202,7 @@ export async function projectRoutes(app: FastifyInstance) {
         'enable_terminal',
         'enable_vscode',
         'enable_browser',
+        'include_in_toolbar',
         'stack',
         'sort_order',
       ];
@@ -214,7 +217,8 @@ export async function projectRoutes(app: FastifyInstance) {
           if (
             field === 'enable_terminal' ||
             field === 'enable_vscode' ||
-            field === 'enable_browser'
+            field === 'enable_browser' ||
+            field === 'include_in_toolbar'
           )
             value = value ? 1 : 0;
           sets.push(`${field} = ?`);

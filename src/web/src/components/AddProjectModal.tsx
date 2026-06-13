@@ -3,6 +3,7 @@ import { FolderOpen, Tag } from 'lucide-react';
 import { api } from '../api/client';
 import { useAppStore } from '../stores/app';
 import { Modal, Button, Input, cn } from './ui';
+import { PROJECT_ICONS } from '../lib/projectIcons';
 
 const PRESET_COLORS = [
   '#6366f1',
@@ -14,8 +15,6 @@ const PRESET_COLORS = [
   '#06b6d4',
   '#3b82f6',
 ];
-
-const PRESET_ICONS = ['📁', '🚀', '🔐', '⚙️', '🌐', '📦', '🗄️', '💻', '🔧', '⚡'];
 
 interface AddProjectModalProps {
   open: boolean;
@@ -30,7 +29,7 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
   const [path, setPath] = useState('');
   const [stackInput, setStackInput] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [icon, setIcon] = useState(PRESET_ICONS[0]);
+  const [icon, setIcon] = useState('folder');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +50,7 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
       setPath('');
       setStackInput('');
       setColor(PRESET_COLORS[0]);
-      setIcon(PRESET_ICONS[0]);
+      setIcon('folder');
       setError(null);
       setLoading(false);
     }
@@ -102,20 +101,23 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
               <label className="block text-[12px] font-semibold text-text-secondary mb-1.5 tracking-widest uppercase">
                 Icon
               </label>
-              <div className="flex flex-wrap gap-1" style={{ maxWidth: '120px' }}>
-                {PRESET_ICONS.map((ic) => (
+              <div className="grid grid-cols-5 gap-1" style={{ maxWidth: '180px' }}>
+                {PROJECT_ICONS.map(({ name, Icon }) => (
                   <button
-                    key={ic}
+                    key={name}
                     type="button"
-                    onClick={() => setIcon(ic)}
-                    aria-label={`Select icon ${ic}`}
+                    onClick={() => setIcon(name)}
+                    aria-label={`Select ${name} icon`}
+                    aria-pressed={icon === name}
                     className={cn(
-                      'w-8 h-8 text-base rounded-md cursor-pointer transition-colors duration-150 border-2',
+                      'w-8 h-8 rounded-md cursor-pointer transition-colors duration-150 border-2 flex items-center justify-center',
                       'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
-                      icon === ic ? 'border-accent bg-accent/15' : 'border-transparent bg-border-default',
+                      icon === name
+                        ? 'border-accent bg-accent/15 text-accent'
+                        : 'border-transparent bg-border-default text-text-secondary hover:text-text-primary',
                     )}
                   >
-                    {ic}
+                    <Icon size={16} />
                   </button>
                 ))}
               </div>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, type Project, type Environment, type Secret, type Stats } from '../api/client';
+import { type ThemeId, getStoredTheme, applyTheme } from '../lib/theme';
 
 interface AppState {
   // Auth
@@ -36,6 +37,10 @@ interface AppState {
 
   // Top-level view
   view: 'projects' | 'ports';
+
+  // Theme
+  theme: ThemeId;
+  setTheme: (id: ThemeId) => void;
 
   // Actions
   checkAuth: () => Promise<void>;
@@ -130,11 +135,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   editingSecret: null,
 
   // Dock defaults
-  dockMode: true,
+  dockMode: false,
   panelOpen: false,
   dockEdge: 'right',
   activeTab: 'main',
   view: 'projects',
+
+  // Theme defaults
+  theme: getStoredTheme(),
 
   // Auth actions
   checkAuth: async () => {
@@ -253,6 +261,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setImportOpen: (open) => set({ importOpen: open }),
   setEditingSecret: (secret) => set({ editingSecret: secret, addSecretOpen: !!secret }),
   clearError: () => set({ error: null }),
+
+  // Theme actions
+  setTheme: (id) => { applyTheme(id); set({ theme: id }); },
 
   // Dock actions
   setDockMode: (mode) => set({ dockMode: mode }),

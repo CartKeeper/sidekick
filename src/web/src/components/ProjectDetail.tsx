@@ -5,6 +5,7 @@ import { SecretsTab } from './SecretsTab';
 import { LaunchTab } from './LaunchTab';
 import { SettingsTab } from './SettingsTab';
 import { ProjectIcon } from './ProjectIcon';
+import { StackIcon } from './StackIcon';
 import { cn } from './ui';
 
 type Tab = 'secrets' | 'launch' | 'settings';
@@ -55,17 +56,17 @@ export function ProjectDetail() {
             </p>
           )}
         </div>
-        {/* Stack tags */}
+        {/* Stack logos */}
         {currentProject.stack && currentProject.stack.length > 0 && (
-          <div className="flex gap-1.5 shrink-0 flex-wrap max-w-50">
-            {currentProject.stack.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center h-5.5 px-2 text-[11px] font-semibold text-text-secondary bg-border-default rounded-md whitespace-nowrap tracking-wide"
-              >
-                {tag}
-              </span>
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap max-w-50 justify-end">
+            {currentProject.stack.slice(0, 6).map((tag) => (
+              <StackIcon key={tag} name={tag} size={16} />
             ))}
+            {currentProject.stack.length > 6 && (
+              <span className="text-[11px] font-semibold text-text-muted">
+                +{currentProject.stack.length - 6}
+              </span>
+            )}
           </div>
         )}
       </div>

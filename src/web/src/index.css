@@ -11,9 +11,9 @@
   --color-border-default: #2a2a3a;
   --color-border-strong: #3a3a4a;
 
-  --color-accent: #6366f1;
-  --color-accent-hover: #5558e6;
-  --color-accent-muted: rgba(99, 102, 241, 0.15);
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+  --color-accent-muted: rgba(6, 182, 212, 0.15);
 
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
@@ -150,4 +150,128 @@ html, body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ===================== THEME TREATMENT TOKENS ===================== */
+/* Defaults (used if no theme set) */
+:root {
+  --btn-primary-bg: var(--color-accent);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-glow: none;
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border-default);
+  --card-blur: 0px;
+  --card-hover-border: var(--color-border-strong);
+  --card-hover-shadow: var(--shadow-md);
+  --app-bg: none;
+  --badge-bg: var(--color-surface-active);
+  --badge-fg: var(--color-text-secondary);
+  --badge-border: transparent;
+}
+
+/* ---------- AURORA GLOW ---------- */
+[data-theme="aurora"] {
+  --color-accent: #22d3ee;
+  --color-accent-hover: #38bdf8;
+  --color-accent-muted: rgba(34, 211, 238, 0.15);
+  --color-void: #060608;
+  --color-abyss: #0c0d12;
+  --color-surface: #13141b;
+  --color-surface-hover: #1b1d27;
+  --btn-primary-bg: linear-gradient(90deg, #22d3ee, #38bdf8);
+  --btn-primary-fg: #04141a;
+  --btn-primary-glow: 0 6px 20px rgba(34, 211, 238, 0.45);
+  --card-bg: rgba(255, 255, 255, 0.025);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-blur: 8px;
+  --card-hover-border: rgba(34, 211, 238, 0.4);
+  --card-hover-shadow: 0 0 0 1px rgba(34, 211, 238, 0.15), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --app-bg: radial-gradient(120% 90% at 100% 0%, rgba(34, 211, 238, 0.08), transparent 55%),
+            radial-gradient(100% 80% at 0% 100%, rgba(139, 92, 246, 0.06), transparent 50%);
+  --badge-bg: rgba(255, 255, 255, 0.06);
+  --badge-fg: #c8c8e0;
+  --badge-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- ELECTRIC MONO ---------- */
+[data-theme="mono"] {
+  --color-accent: #d4f74a;
+  --color-accent-hover: #c2e636;
+  --color-accent-muted: rgba(212, 247, 74, 0.15);
+  --color-void: #060608;
+  --color-abyss: #0a0a0c;
+  --color-surface: #101013;
+  --color-surface-hover: #16161b;
+  --btn-primary-bg: #d4f74a;
+  --btn-primary-fg: #0a0a0c;
+  --btn-primary-glow: none;
+  --card-bg: transparent;
+  --card-border: #18181d;
+  --card-blur: 0px;
+  --card-hover-border: #2e2e36;
+  --card-hover-shadow: none;
+  --app-bg: none;
+  --badge-bg: #141418;
+  --badge-fg: #9a9aa8;
+  --badge-border: #24242c;
+}
+
+/* ---------- IRIDESCENT ---------- */
+[data-theme="iris"] {
+  --color-accent: #a855f7;
+  --color-accent-hover: #9333ea;
+  --color-accent-muted: rgba(168, 85, 247, 0.15);
+  --color-void: #070510;
+  --color-abyss: #0b0710;
+  --color-surface: #140e1f;
+  --color-surface-hover: #1c1430;
+  --btn-primary-bg: linear-gradient(90deg, #d946ef, #8b5cf6 50%, #6366f1);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-glow: 0 6px 22px rgba(168, 85, 247, 0.45);
+  --card-bg: linear-gradient(180deg, rgba(168, 85, 247, 0.05), rgba(255, 255, 255, 0.01));
+  --card-border: #2a1f3a;
+  --card-blur: 0px;
+  --card-hover-border: #8b5cf6;
+  --card-hover-shadow: 0 8px 24px rgba(139, 92, 246, 0.25);
+  --app-bg: radial-gradient(120% 90% at 100% 0%, rgba(217, 70, 239, 0.07), transparent 55%);
+  --badge-bg: rgba(217, 70, 239, 0.12);
+  --badge-fg: #e9a5f5;
+  --badge-border: rgba(217, 70, 239, 0.25);
+}
+
+/* App background effect layer (sits behind everything) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--app-bg, none);
+}
+#root { position: relative; z-index: 1; min-height: 100vh; }
+
+/* Theme-driven primitive treatments */
+.ui-btn-primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  box-shadow: var(--btn-primary-glow);
+}
+.ui-btn-primary:hover { filter: brightness(1.06); }
+
+.ui-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+.ui-card-interactive:hover {
+  border-color: var(--card-hover-border);
+  box-shadow: var(--card-hover-shadow);
+}
+
+.ui-badge {
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  border: 1px solid var(--badge-border);
 }

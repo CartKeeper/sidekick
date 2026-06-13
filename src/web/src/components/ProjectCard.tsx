@@ -3,6 +3,7 @@ import { MoreHorizontal, Pencil, Copy, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { api, type Project } from '../api/client';
 import { ProjectIcon } from './ProjectIcon';
+import { StackIcon } from './StackIcon';
 import { cn } from './ui';
 
 interface ProjectCardProps {
@@ -18,7 +19,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const [duplicating, setDuplicating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const visibleTags = project.stack?.slice(0, 2) ?? [];
+  const allTags = project.stack ?? [];
 
   // Close menu on outside click
   useEffect(() => {
@@ -82,24 +83,24 @@ export function ProjectCard({ project }: ProjectCardProps) {
       >
         <div
           className={cn(
-            'relative flex items-center gap-2.5 py-2 pl-3 pr-8 rounded-lg',
+            'relative flex items-center gap-3 py-3 pl-3 pr-8 rounded-lg',
             'border-l-[3px] transition-[background-color,border-color] duration-150',
             isActive
               ? 'border-l-accent bg-accent-muted'
               : 'border-l-transparent hover:bg-surface-hover',
           )}
         >
-          {/* Icon */}
+          {/* Icon — sized to match the card height */}
           <ProjectIcon
             icon={project.icon}
             iconPath={project.icon_path}
             color={project.color}
             name={project.name}
-            size={24}
-            borderRadius={6}
+            size={56}
+            borderRadius={12}
           />
 
-          {/* Name + metadata */}
+          {/* Name + metadata — fixed three-row layout keeps every card the same height */}
           <div className="flex-1 min-w-0">
             <div
               className={cn(
@@ -110,18 +111,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
               {project.name}
             </div>
 
-            <div className="flex items-center gap-1.5 mt-0.5 flex-nowrap overflow-hidden">
-              <span className="text-[11px] font-semibold text-text-muted shrink-0">
-                {project.secretCount ?? 0} secrets
-              </span>
+            <div className="text-[11px] font-semibold text-text-muted mt-1">
+              {project.secretCount ?? 0} secrets
+            </div>
 
-              {visibleTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[10px] font-semibold text-text-secondary bg-border-default rounded-sm px-1.5 py-px shrink-0 truncate max-w-15"
-                >
-                  {tag}
-                </span>
+            {/* Always-present stack-logo row (blank when no stack) → uniform card height */}
+            <div className="flex items-center gap-2 mt-2 h-[18px] overflow-hidden">
+              {allTags.map((tag) => (
+                <StackIcon key={tag} name={tag} size={15} />
               ))}
             </div>
           </div>

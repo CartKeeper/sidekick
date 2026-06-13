@@ -108,6 +108,9 @@ export function getDb(dbPath?: string): Database.Database {
     db.exec("ALTER TABLE projects ADD COLUMN supabase_token_iv TEXT DEFAULT NULL");
     db.exec("ALTER TABLE projects ADD COLUMN supabase_token_auth_tag TEXT DEFAULT NULL");
   }
+  if (!colNames.has('include_in_toolbar')) {
+    db.exec("ALTER TABLE projects ADD COLUMN include_in_toolbar INTEGER DEFAULT 1");
+  }
 
   // Secrets source column
   const secretCols = db.prepare("PRAGMA table_info(secrets)").all() as { name: string }[];

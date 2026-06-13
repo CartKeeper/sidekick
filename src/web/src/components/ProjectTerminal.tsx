@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Square, X as XIcon } from 'lucide-react';
+import { RefreshCw, Square, X as XIcon, Play } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { TerminalPanel } from './TerminalPanel';
 import { ProjectIcon } from './ProjectIcon';
@@ -93,7 +93,8 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             onClick={() => launchProject(projectId)}
             className="text-success hover:text-success hover:border-success/40 hover:bg-success/10 border border-border-default"
           >
-            ▶ Launch
+            <Play size={12} />
+            Launch
           </Button>
         )}
       </div>

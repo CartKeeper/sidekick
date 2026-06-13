@@ -2,5 +2,20 @@ node_modules/
 dist/
 data/
 *.db
+# SQLite sidecar files can contain live data (incl. secrets) — never commit
+*.db-shm
+*.db-wal
 .env
 .DS_Store
+
+# Build output
+release/
+
+# Editor / tooling
+.clj-kondo/
+.lsp/
+.mcp.json
+
+# Local-only / working artifacts (not part of the app)
+DO_NOT_DELETE/
+UI_POLISH_BRIEF.md

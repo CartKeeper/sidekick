@@ -63,9 +63,9 @@ export function DockStrip({ activeTab, onTabClick, onUndock }: DockStripProps) {
     (p) => p.status !== 'stopped' && p.status !== 'killed'
   );
 
-  // Projects that have launch commands
+  // Projects that have launch commands and aren't hidden from the toolbar
   const launchableProjects = projects.filter(
-    (p) => p.start_commands && p.start_commands.length > 0
+    (p) => p.start_commands && p.start_commands.length > 0 && p.include_in_toolbar !== false
   );
 
   const isProjectRunning = (projectId: string) =>

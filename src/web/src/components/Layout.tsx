@@ -1,12 +1,13 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FolderOpen, PanelRightClose } from 'lucide-react';
+import { FolderOpen, PanelRightClose, Settings } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { connectProcessStream } from '../api/client';
 import { Sidebar } from './Sidebar';
 import { ProjectDetail } from './ProjectDetail';
 import { PortsTab } from './PortsTab';
-import { IconButton } from './ui';
+import { IconButton, Modal } from './ui';
+import { PreferencesContent } from './PreferencesModal';
 
 function WelcomeDashboard() {
   const { stats } = useAppStore();
@@ -68,14 +69,14 @@ function WelcomeDashboard() {
 
 export function Layout() {
   const { currentProjectId, view, fetchProjects, fetchStats } = useAppStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Docking needs the Electron OS-window bridge; it can't work in a plain browser.
+  // Hide the control entirely outside Electron so it isn't a dead button.
+  const canDock = typeof window !== 'undefined' && typeof window.sidekick?.switchToDocked === 'function';
 
   const handleDock = useCallback(() => {
-    if (window.sidekick?.switchToDocked) {
-      window.sidekick.switchToDocked();
-    } else {
-      // Browser fallback
-      useAppStore.getState().setDockMode(true);
-    }
+    window.sidekick?.switchToDocked?.();
   }, []);
 
   // Load data when layout mounts (vault is unlocked)
@@ -106,16 +107,22 @@ export function Layout() {
       {/* Electron drag region at top */}
       <div
         className="drag-region h-10 shrink-0 bg-abyss border-b border-border-default
-                   flex items-center justify-end pr-3"
+                   flex items-center justify-end gap-1 pr-3"
       >
-        {/* Dock button — return to docked sidebar mode */}
-        <IconButton
-          aria-label="Dock to screen edge"
-          className="no-drag"
-          onClick={handleDock}
-        >
-          <PanelRightClose size={16} />
+        {/* Settings button */}
+        <IconButton aria-label="Settings" className="no-drag" onClick={() => setSettingsOpen(true)}>
+          <Settings size={16} />
         </IconButton>
+        {/* Dock button — return to docked sidebar mode (Electron only) */}
+        {canDock && (
+          <IconButton
+            aria-label="Dock to screen edge"
+            className="no-drag"
+            onClick={handleDock}
+          >
+            <PanelRightClose size={16} />
+          </IconButton>
+        )}
       </div>
 
       {/* App body: sidebar + content */}
@@ -133,6 +140,13 @@ export function Layout() {
           )}
         </main>
       </div>
+
+      <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} size="sm" labelledBy="settings-title">
+        <Modal.Header title="Settings" onClose={() => setSettingsOpen(false)} id="settings-title" />
+        <Modal.Body>
+          <PreferencesContent />
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }

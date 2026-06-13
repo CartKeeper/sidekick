@@ -2,7 +2,7 @@ import { Plus, Lock, RefreshCw, Network } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ProjectCard } from './ProjectCard';
 import { AddProjectModal } from './AddProjectModal';
-import { IconButton, Button } from './ui';
+import { IconButton, cn } from './ui';
 
 export function Sidebar() {
   const { projects, stats, lock, addProjectOpen, setAddProjectOpen, fetchProjects, fetchStats, currentProjectId, selectProject, view, setView } = useAppStore();
@@ -11,7 +11,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="w-65 shrink-0 flex flex-col bg-abyss border-r border-border-default h-full overflow-hidden">
+      <aside className="w-82 shrink-0 flex flex-col bg-abyss border-r border-border-default h-full overflow-hidden">
         {/* App title — sits below drag region, clear of traffic lights */}
         <div className="no-drag px-4 py-2.5 border-b border-border-default shrink-0">
           <span className="text-[16px] font-bold text-text-primary tracking-[-0.01em]">
@@ -82,35 +82,42 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Actions row */}
-          <div className="flex items-center justify-between px-3 pb-3 pt-2 gap-2">
-            {/* Ports button */}
-            <Button
+          {/* Actions row — card-style buttons */}
+          <div className="flex items-stretch gap-2 px-3 pb-3 pt-1">
+            {/* Ports (toggle) */}
+            <button
               type="button"
-              variant={view === 'ports' ? 'secondary' : 'ghost'}
-              size="sm"
               onClick={() => setView(view === 'ports' ? 'projects' : 'ports')}
-              className={
+              aria-label="Toggle ports view"
+              aria-pressed={view === 'ports'}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 h-11 rounded-lg border text-[12px] font-semibold cursor-pointer',
+                'transition-colors duration-150',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                 view === 'ports'
-                  ? 'text-accent border-accent/40 bg-accent/12'
-                  : ''
-              }
+                  ? 'text-accent border-accent/40 bg-accent-muted'
+                  : 'text-text-secondary border-border-default bg-surface hover:bg-surface-hover hover:text-text-primary hover:border-border-strong',
+              )}
             >
-              <Network size={12} />
+              <Network size={14} />
               Ports
-            </Button>
+            </button>
 
-            {/* Lock button */}
-            <Button
+            {/* Lock Vault */}
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
               onClick={lock}
-              className="hover:text-danger hover:bg-danger/10 hover:border-danger/30"
+              aria-label="Lock vault"
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 h-11 rounded-lg border text-[12px] font-semibold cursor-pointer',
+                'transition-colors duration-150 text-text-secondary border-border-default bg-surface',
+                'hover:text-danger hover:border-danger/40 hover:bg-danger/10',
+                'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+              )}
             >
-              <Lock size={12} />
+              <Lock size={14} />
               Lock Vault
-            </Button>
+            </button>
           </div>
         </div>
       </aside>

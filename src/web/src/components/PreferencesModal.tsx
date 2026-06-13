@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Lock } from 'lucide-react';
+import { Monitor, Lock, Palette } from 'lucide-react';
 import { Select, Spinner, cn } from './ui';
+import { ThemePicker } from './ThemePicker';
 
 const AUTO_LOCK_OPTIONS: { label: string; value: number | null }[] = [
   { label: '15 minutes', value: 15 * 60 * 1000 },
@@ -19,7 +20,35 @@ interface DisplayInfo {
   isPrimary: boolean;
 }
 
-export function PreferencesPanel() {
+function SectionHeader({ icon: Icon, children }: { icon: typeof Monitor; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <Icon size={14} className="text-text-secondary" />
+      <span className="text-[12px] font-semibold text-text-secondary tracking-widest uppercase">{children}</span>
+    </div>
+  );
+}
+
+/** A tiny monitor glyph with the dock strip drawn on the chosen side — makes "edge" obvious. */
+function EdgePreview({ side }: { side: 'left' | 'right' }) {
+  return (
+    <span className="relative block w-10 h-6.5 rounded border border-current/40">
+      <span
+        className={cn(
+          'absolute top-1 bottom-1 w-[5px] rounded-[2px] bg-current',
+          side === 'left' ? 'left-1' : 'right-1',
+        )}
+      />
+    </span>
+  );
+}
+
+/**
+ * The settings body — shared by the dock-mode Preferences panel and the main-window
+ * Settings dialog (gear). All dock options use the `window.sidekick` bridge, so they
+ * work from either display mode.
+ */
+export function PreferencesContent() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [displayId, setDisplayId] = useState<number | null>(null);
   const [edge, setEdge] = useState<'left' | 'right'>('right');
@@ -43,8 +72,7 @@ export function PreferencesPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSave = async (next: { displayId?: number | null; edge?: 'left' | 'right' }) => {
-    await window.sidekick?.setDockPosition?.(next);
+  const flashSaved = () => {
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1000);
   };
@@ -52,41 +80,50 @@ export function PreferencesPanel() {
   const onDisplayChange = (value: string) => {
     const id = value === 'auto' ? null : Number(value);
     setDisplayId(id);
-    handleSave({ displayId: id });
+    window.sidekick?.setDockPosition?.({ displayId: id });
+    flashSaved();
   };
 
   const onEdgeChange = (next: 'left' | 'right') => {
     setEdge(next);
-    handleSave({ edge: next });
+    window.sidekick?.setDockPosition?.({ edge: next });
+    flashSaved();
   };
 
   const onAutoLockChange = (value: string) => {
     const next = value === 'null' ? null : Number(value);
     setAutoLockMsState(next);
     window.sidekick?.setAutoLockTimeout?.(next);
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1000);
+    flashSaved();
   };
 
   return (
-    <div className="no-drag h-full overflow-auto px-5.5 py-5 text-text-primary">
-      <div className="flex items-center justify-between mb-4.5">
-        <h2 className="m-0 text-base font-bold tracking-tight">Preferences</h2>
-        <span
-          className="text-[11px] font-semibold text-success transition-opacity duration-200"
-          style={{ opacity: savedFlash ? 1 : 0 }}
-        >
-          Saved
-        </span>
-      </div>
+    <div className="flex flex-col gap-6 text-text-primary">
+      {/* Saved indicator */}
+      <span
+        aria-live="polite"
+        className="pointer-events-none -mb-3 self-end text-[11px] font-semibold text-success transition-opacity duration-200"
+        style={{ opacity: savedFlash ? 1 : 0 }}
+      >
+        Saved ✓
+      </span>
 
-      <section className="mb-5.5">
-        <div className="flex items-center gap-2 mb-2.5">
-          <Monitor size={14} className="text-text-secondary" />
-          <span className="text-[12px] font-semibold text-text-secondary tracking-widest uppercase">
-            Dock Position
-          </span>
-        </div>
+      {/* Appearance */}
+      <section>
+        <SectionHeader icon={Palette}>Appearance</SectionHeader>
+        <p className="text-[12px] text-text-muted mb-3 leading-normal">
+          Pick a skin. Applies everywhere and is remembered across restarts.
+        </p>
+        <ThemePicker />
+      </section>
+
+      {/* Dock Position */}
+      <section>
+        <SectionHeader icon={Monitor}>Dock Position</SectionHeader>
+        <p className="text-[12px] text-text-muted mb-3 leading-normal">
+          When you switch to the slim <strong className="text-text-secondary font-semibold">docked strip</strong>,
+          this controls which screen it attaches to and which side it hugs.
+        </p>
 
         {loading ? (
           <div className="flex items-center gap-2 text-text-muted text-[13px]">
@@ -95,25 +132,29 @@ export function PreferencesPanel() {
           </div>
         ) : (
           <>
-            <label className="text-[12px] text-text-secondary block mb-1.5">
-              Display
-            </label>
+            <label className="text-[12px] font-semibold text-text-secondary block mb-1">Monitor</label>
+            <p className="text-[12px] text-text-muted mb-1.5 leading-normal">
+              Which display the docked strip snaps to.
+            </p>
             <Select
               value={displayId == null ? 'auto' : String(displayId)}
               onChange={(e) => onDisplayChange(e.target.value)}
-              className="mb-3.5"
+              className="mb-4"
+              aria-label="Dock display"
             >
-              <option value="auto">Auto (whichever display the window is on)</option>
+              <option value="auto">Auto — follow the window's current screen</option>
               {displays.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
+                  {d.isPrimary ? ' (primary)' : ''}
                 </option>
               ))}
             </Select>
 
-            <label className="text-[12px] text-text-secondary block mb-1.5">
-              Edge
-            </label>
+            <label className="text-[12px] font-semibold text-text-secondary block mb-1">Side of the screen</label>
+            <p className="text-[12px] text-text-muted mb-2 leading-normal">
+              Which edge Sidekick clings to — pick the side that stays out of your way.
+            </p>
             <div className="flex gap-2">
               {(['left', 'right'] as const).map((option) => {
                 const isActive = edge === option;
@@ -122,42 +163,39 @@ export function PreferencesPanel() {
                     key={option}
                     type="button"
                     onClick={() => onEdgeChange(option)}
+                    aria-label={`Dock to the ${option} edge`}
+                    aria-pressed={isActive}
                     className={cn(
-                      'flex-1 h-9.5 text-[13px] font-semibold rounded-md cursor-pointer capitalize',
-                      'border transition-[background-color,color,border-color] duration-150',
+                      'flex-1 flex flex-col items-center gap-1.5 py-3 rounded-lg cursor-pointer capitalize',
+                      'border text-[12px] font-semibold',
+                      'transition-[background-color,color,border-color] duration-150',
                       'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
                       isActive
-                        ? 'text-text-primary bg-accent/15 border-accent'
+                        ? 'text-accent bg-accent/15 border-accent'
                         : 'text-text-muted bg-void border-border-default hover:bg-surface-hover hover:text-text-primary',
                     )}
                   >
+                    <EdgePreview side={option} />
                     {option}
                   </button>
                 );
               })}
             </div>
-            <p className="text-[12px] text-text-muted mt-2.5 leading-normal">
-              Sidekick docks to the chosen edge of the selected display. "Auto" uses whichever display the window is
-              currently on when you switch to dock mode.
-            </p>
           </>
         )}
       </section>
 
+      {/* Auto-Lock */}
       <section>
-        <div className="flex items-center gap-2 mb-2.5">
-          <Lock size={14} className="text-text-secondary" />
-          <span className="text-[12px] font-semibold text-text-secondary tracking-widest uppercase">
-            Auto-Lock
-          </span>
-        </div>
-
-        <label className="text-[12px] text-text-secondary block mb-1.5">
-          Lock vault after idle
-        </label>
+        <SectionHeader icon={Lock}>Auto-Lock</SectionHeader>
+        <p className="text-[12px] text-text-muted mb-3 leading-normal">
+          Automatically lock the vault after you've been idle, so your secrets aren't left exposed.
+        </p>
+        <label className="text-[12px] font-semibold text-text-secondary block mb-1.5">Lock after idle</label>
         <Select
           value={autoLockMs == null ? 'null' : String(autoLockMs)}
           onChange={(e) => onAutoLockChange(e.target.value)}
+          aria-label="Auto-lock timeout"
         >
           {AUTO_LOCK_OPTIONS.map((opt) => (
             <option key={String(opt.value)} value={opt.value == null ? 'null' : String(opt.value)}>
@@ -165,11 +203,21 @@ export function PreferencesPanel() {
             </option>
           ))}
         </Select>
-        <p className="text-[12px] text-text-muted mt-2.5 leading-normal">
-          Idle is measured by mouse and keyboard activity inside Sidekick. "Never" disables auto-lock until you quit
-          or use Lock Vault from the tray.
+        <p className="text-[12px] text-text-muted mt-2 leading-normal">
+          Idle = no mouse or keyboard activity inside Sidekick. “Never” keeps it unlocked until you quit or use Lock
+          Vault.
         </p>
       </section>
+    </div>
+  );
+}
+
+/** Dock-mode preferences panel (rendered inside the dock panel). */
+export function PreferencesPanel() {
+  return (
+    <div className="no-drag h-full overflow-auto px-5 py-5">
+      <h2 className="m-0 mb-4 text-base font-bold tracking-tight text-text-primary">Preferences</h2>
+      <PreferencesContent />
     </div>
   );
 }

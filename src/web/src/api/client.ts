@@ -48,6 +48,7 @@ export interface Project {
   enable_terminal: boolean;
   enable_vscode: boolean;
   enable_browser: boolean;
+  include_in_toolbar: boolean;
   stack: string[];
   sort_order: number;
   archived: boolean;

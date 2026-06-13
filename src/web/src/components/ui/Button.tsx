@@ -6,7 +6,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover border border-transparent',
+  primary: 'ui-btn-primary border border-transparent',
   secondary:
     'bg-surface text-text-primary border border-border-default hover:bg-surface-hover hover:border-border-strong',
   ghost: 'bg-transparent text-text-secondary border border-transparent hover:bg-surface-hover hover:text-text-primary',
@@ -45,7 +45,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...rest}
     >
       {loading && <Loader2 size={size === 'sm' ? 13 : 14} className="spin shrink-0" />}
-      <span className="truncate">{children}</span>
+      {children}
     </button>
   );
 });
