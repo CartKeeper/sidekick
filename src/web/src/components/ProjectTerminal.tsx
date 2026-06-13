@@ -3,6 +3,7 @@ import { RefreshCw, Square, X as XIcon } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { TerminalPanel } from './TerminalPanel';
 import { ProjectIcon } from './ProjectIcon';
+import { Button, IconButton, cn } from './ui';
 
 interface ProjectTerminalProps {
   projectId: string;
@@ -32,58 +33,16 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
 
   if (!project) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          color: '#6b6b80',
-          fontSize: '14px',
-        }}
-      >
+      <div className="flex items-center justify-center h-full text-text-muted text-[14px]">
         Project not found.
       </div>
     );
   }
 
-  const headerBtnStyle: React.CSSProperties = {
-    height: '32px',
-    padding: '0 12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    borderRadius: '8px',
-    border: '1px solid #2a2a3a',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: 600,
-    transition: 'color 150ms ease, border-color 150ms ease, background-color 150ms ease',
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-  };
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header: project name + Restart + Stop All */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '12px 16px',
-          borderBottom: '1px solid #2a2a3a',
-          flexShrink: 0,
-        }}
-      >
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border-default shrink-0">
         {/* Project icon + name */}
         <ProjectIcon
           icon={project.icon}
@@ -93,103 +52,55 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
           size={28}
           borderRadius={8}
         />
-        <span
-          style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            color: '#e4e4ed',
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span className="text-[14px] font-semibold text-text-primary flex-1 min-w-0 truncate">
           {project.name}
         </span>
 
         {/* Restart button */}
         {isRunning && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             title="Restart all"
             onClick={() => restartProject(projectId)}
-            style={{ ...headerBtnStyle, color: '#89b4fa' }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = 'rgba(137,180,250,0.4)';
-              el.style.backgroundColor = 'rgba(137,180,250,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = '#2a2a3a';
-              el.style.backgroundColor = 'transparent';
-            }}
+            className="text-[#89b4fa] hover:text-[#89b4fa] hover:border-[rgba(137,180,250,0.4)] hover:bg-[rgba(137,180,250,0.08)] border border-border-default"
           >
             <RefreshCw size={12} />
             Restart
-          </button>
+          </Button>
         )}
 
         {/* Stop All button */}
         {isRunning && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             title="Stop all processes"
             onClick={() => stopProject(projectId)}
-            style={{ ...headerBtnStyle, color: '#f38ba8' }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = 'rgba(243,139,168,0.4)';
-              el.style.backgroundColor = 'rgba(243,139,168,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = '#2a2a3a';
-              el.style.backgroundColor = 'transparent';
-            }}
+            className="text-danger hover:text-danger hover:border-[rgba(243,139,168,0.4)] hover:bg-[rgba(243,139,168,0.08)] border border-border-default"
           >
             <Square size={12} />
             Stop All
-          </button>
+          </Button>
         )}
 
         {/* Launch button when not running */}
         {!isRunning && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             title="Launch project"
             onClick={() => launchProject(projectId)}
-            style={{ ...headerBtnStyle, color: '#a6e3a1' }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = 'rgba(166,227,161,0.4)';
-              el.style.backgroundColor = 'rgba(166,227,161,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.borderColor = '#2a2a3a';
-              el.style.backgroundColor = 'transparent';
-            }}
+            className="text-success hover:text-success hover:border-[rgba(166,227,161,0.4)] hover:bg-[rgba(166,227,161,0.08)] border border-border-default"
           >
             ▶ Launch
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Process tab bar */}
       {projectProcesses.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0',
-            padding: '0 8px',
-            borderBottom: '1px solid #2a2a3a',
-            flexShrink: 0,
-            overflowX: 'auto',
-            backgroundColor: '#0d0d14',
-          }}
-        >
+        <div className="flex items-center gap-0 px-2 border-b border-border-default shrink-0 overflow-x-auto bg-abyss">
           {projectProcesses.map((proc) => {
             const isActive = selectedProcessId === proc.id;
             const procRunning =
@@ -199,43 +110,26 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             return (
               <div
                 key={proc.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
-                  color: isActive ? '#e4e4ed' : '#6b6b80',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  transition: 'color 150ms ease, border-color 150ms ease',
-                  flexShrink: 0,
-                }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-2 cursor-pointer shrink-0 text-[12px] font-semibold whitespace-nowrap',
+                  'transition-colors duration-150',
+                  'border-b-2',
+                  isActive
+                    ? 'border-accent text-text-primary'
+                    : 'border-transparent text-text-muted hover:text-text-primary'
+                )}
                 onClick={() => setSelectedProcessId(proc.id)}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.color = '#e4e4ed';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.color = '#6b6b80';
-                  }
-                }}
               >
                 {/* Status dot */}
                 <span
-                  style={{
-                    display: 'inline-block',
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '9999px',
-                    backgroundColor: procRunning ? '#a6e3a1' : procCrashed ? '#f38ba8' : '#585b70',
-                    boxShadow: procRunning ? '0 0 4px #a6e3a1' : 'none',
-                    flexShrink: 0,
-                  }}
+                  className={cn(
+                    'inline-block w-1.5 h-1.5 rounded-full shrink-0',
+                    procRunning
+                      ? 'bg-[#a6e3a1] shadow-[0_0_4px_#a6e3a1]'
+                      : procCrashed
+                        ? 'bg-danger'
+                        : 'bg-[#585b70]'
+                  )}
                 />
 
                 {/* Command name */}
@@ -243,41 +137,19 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
 
                 {/* Kill button for this process */}
                 {procRunning && (
-                  <button
-                    type="button"
+                  <IconButton
+                    aria-label={`Kill ${proc.commandName || proc.name}`}
                     title={`Kill ${proc.commandName || proc.name}`}
+                    variant="danger"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       killProcess(proc.id);
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '4px',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      cursor: 'pointer',
-                      color: '#585b70',
-                      padding: 0,
-                      transition: 'color 150ms ease, background-color 150ms ease',
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget;
-                      el.style.color = '#f38ba8';
-                      el.style.backgroundColor = 'rgba(243,139,168,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget;
-                      el.style.color = '#585b70';
-                      el.style.backgroundColor = 'transparent';
-                    }}
+                    className="w-[18px] h-[18px] rounded-sm"
                   >
                     <XIcon size={10} />
-                  </button>
+                  </IconButton>
                 )}
               </div>
             );
@@ -286,7 +158,7 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
       )}
 
       {/* Terminal output for selected process */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="flex-1 overflow-hidden flex flex-col">
         {selectedProcessId ? (
           <TerminalPanel
             key={selectedProcessId}
@@ -299,26 +171,14 @@ export function ProjectTerminal({ projectId }: ProjectTerminalProps) {
             onRestart={() => restartProject(projectId)}
           />
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              gap: '12px',
-              color: '#6b6b80',
-              padding: '16px',
-              textAlign: 'center',
-            }}
-          >
-            <span style={{ fontSize: '14px' }}>
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-text-muted p-4 text-center">
+            <span className="text-[14px]">
               {project.start_commands && project.start_commands.length > 0
                 ? 'Click Launch to start this project.'
                 : 'No start commands configured.'}
             </span>
             {project.start_commands && project.start_commands.length > 0 && (
-              <div style={{ fontSize: '12px', color: '#585b70' }}>
+              <div className="text-[12px] text-[#585b70]">
                 {project.start_commands.map((cmd, i) => (
                   <div key={i}>{cmd.name || cmd.command}</div>
                 ))}
