@@ -5,7 +5,7 @@ import { useAppStore } from '../stores/app';
 import { connectProcessStream } from '../api/client';
 import { Sidebar } from './Sidebar';
 import { ProjectDetail } from './ProjectDetail';
-import { HelpButton } from './HelpButton';
+import { PortsTab } from './PortsTab';
 
 // Placeholder until ProjectDetail is implemented in the next task
 function WelcomeDashboard() {
@@ -142,7 +142,7 @@ function WelcomeDashboard() {
 
 
 export function Layout() {
-  const { currentProjectId, fetchProjects, fetchStats } = useAppStore();
+  const { currentProjectId, view, fetchProjects, fetchStats } = useAppStore();
 
   const handleDock = useCallback(() => {
     if (window.sidekick?.switchToDocked) {
@@ -254,11 +254,15 @@ export function Layout() {
             minWidth: 0,
           }}
         >
-          {currentProjectId ? <ProjectDetail /> : <WelcomeDashboard />}
+          {view === 'ports' ? (
+            <PortsTab />
+          ) : currentProjectId ? (
+            <ProjectDetail />
+          ) : (
+            <WelcomeDashboard />
+          )}
         </main>
       </div>
-
-      <HelpButton />
     </div>
   );
 }

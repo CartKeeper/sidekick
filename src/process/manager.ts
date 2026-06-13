@@ -27,9 +27,65 @@ export interface ProcessOutput {
   stream: 'stdout' | 'stderr';
 }
 
+export interface LogEntry {
+  ts: string;
+  stream: 'stdout' | 'stderr';
+  data: string;
+}
+
+const LOG_BUFFER_LIMIT = 2000;
+
 export class ProcessManager extends EventEmitter {
   private processes = new Map<string, InternalProcess>();
+  private logs = new Map<string, LogEntry[]>();
   private idCounter = 0;
+
+  private appendLog(processId: string, entry: LogEntry) {
+    let buf = this.logs.get(processId);
+    if (!buf) {
+      buf = [];
+      this.logs.set(processId, buf);
+    }
+    buf.push(entry);
+    if (buf.length > LOG_BUFFER_LIMIT) {
+      buf.splice(0, buf.length - LOG_BUFFER_LIMIT);
+    }
+  }
+
+  /**
+   * Get buffered log entries for a single process.
+   */
+  getLogs(processId: string, lines?: number): LogEntry[] {
+    const buf = this.logs.get(processId) ?? [];
+    if (lines && lines > 0 && buf.length > lines) {
+      return buf.slice(-lines);
+    }
+    return buf.slice();
+  }
+
+  /**
+   * Get buffered log entries for every process belonging to a project,
+   * merged in timestamp order.
+   */
+  getLogsByProject(
+    projectId: string,
+    opts?: { lines?: number; stream?: 'stdout' | 'stderr' }
+  ): Array<LogEntry & { processId: string; commandName: string }> {
+    const merged: Array<LogEntry & { processId: string; commandName: string }> = [];
+    for (const proc of this.processes.values()) {
+      if (proc.projectId !== projectId) continue;
+      const buf = this.logs.get(proc.id) ?? [];
+      for (const entry of buf) {
+        if (opts?.stream && entry.stream !== opts.stream) continue;
+        merged.push({ ...entry, processId: proc.id, commandName: proc.commandName });
+      }
+    }
+    merged.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+    if (opts?.lines && opts.lines > 0 && merged.length > opts.lines) {
+      return merged.slice(-opts.lines);
+    }
+    return merged;
+  }
 
   /**
    * Generate a unique process ID
@@ -79,17 +135,21 @@ export class ProcessManager extends EventEmitter {
       };
 
       proc.stdout?.on('data', (data: Buffer) => {
+        const str = data.toString();
+        this.appendLog(id, { ts: new Date().toISOString(), stream: 'stdout', data: str });
         this.emit('output', {
           processId: id,
-          data: data.toString(),
+          data: str,
           stream: 'stdout',
         } satisfies ProcessOutput);
       });
 
       proc.stderr?.on('data', (data: Buffer) => {
+        const str = data.toString();
+        this.appendLog(id, { ts: new Date().toISOString(), stream: 'stderr', data: str });
         this.emit('output', {
           processId: id,
-          data: data.toString(),
+          data: str,
           stream: 'stderr',
         } satisfies ProcessOutput);
       });
@@ -110,9 +170,11 @@ export class ProcessManager extends EventEmitter {
           p.status = 'crashed';
           p.pid = null;
         }
+        const errMsg = `Error: ${err.message}\n`;
+        this.appendLog(id, { ts: new Date().toISOString(), stream: 'stderr', data: errMsg });
         this.emit('output', {
           processId: id,
-          data: `Error: ${err.message}\n`,
+          data: errMsg,
           stream: 'stderr',
         } satisfies ProcessOutput);
         this.emit('exit', { processId: id, code: 1, signal: null });
@@ -178,10 +240,11 @@ export class ProcessManager extends EventEmitter {
     }
   ): Promise<ProcessInfo[]> {
     await this.stop(projectId);
-    // Clean up old processes for this project
+    // Clean up old processes (and their log buffers) for this project
     for (const [id, proc] of this.processes) {
       if (proc.projectId === projectId) {
         this.processes.delete(id);
+        this.logs.delete(id);
       }
     }
     return this.launch({ projectId, ...opts });

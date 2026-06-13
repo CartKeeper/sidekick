@@ -4,7 +4,8 @@ import { useAppStore } from '../stores/app';
 import { Sidebar } from './Sidebar';
 import { ProjectDetail } from './ProjectDetail';
 import { TerminalPanel } from './TerminalPanel';
-import { HelpButton } from './HelpButton';
+import { ProjectTerminal } from './ProjectTerminal';
+import { PreferencesPanel } from './PreferencesModal';
 
 interface DockPanelProps {
   activeTab: string;
@@ -137,6 +138,9 @@ function ProcessPanelContent({ processId }: { processId: string }) {
 }
 
 export function DockPanel({ activeTab }: DockPanelProps) {
+  const isProjectTab = activeTab.startsWith('project:');
+  const projectId = isProjectTab ? activeTab.slice('project:'.length) : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -144,7 +148,7 @@ export function DockPanel({ activeTab }: DockPanelProps) {
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
       style={{
-        width: '408px',
+        width: '600px',
         flexShrink: 0,
         height: '100%',
         backgroundColor: '#0a0a0f',
@@ -157,11 +161,13 @@ export function DockPanel({ activeTab }: DockPanelProps) {
     >
       {activeTab === 'main' ? (
         <MainPanelContent />
+      ) : activeTab === 'preferences' ? (
+        <PreferencesPanel />
+      ) : isProjectTab && projectId ? (
+        <ProjectTerminal projectId={projectId} />
       ) : (
         <ProcessPanelContent processId={activeTab} />
       )}
-
-      <HelpButton />
     </motion.div>
   );
 }

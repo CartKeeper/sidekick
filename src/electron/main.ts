@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
-const SERVER_PORT = 3778;
+const SERVER_PORT = 9999;
 const VITE_PORT = 5173;
 
 let mainWindow: BrowserWindow | null = null;

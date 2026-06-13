@@ -165,6 +165,30 @@ export async function processRoutes(app: FastifyInstance) {
     return app.processManager.getAll();
   });
 
+  // GET /process/logs/:projectId — recent buffered stdout/stderr for a project
+  app.get<{
+    Params: { projectId: string };
+    Querystring: { lines?: string; stream?: string };
+  }>('/process/logs/:projectId', async (req, reply) => {
+    const project = app.db.prepare('SELECT id, name FROM projects WHERE id = ?').get(req.params.projectId) as any;
+    if (!project) return reply.status(404).send({ error: 'Project not found' });
+
+    const lines = req.query.lines ? Math.max(1, Math.min(10000, parseInt(req.query.lines, 10))) : undefined;
+    const streamFilter =
+      req.query.stream === 'stdout' || req.query.stream === 'stderr' ? req.query.stream : undefined;
+
+    const entries = app.processManager.getLogsByProject(project.id, {
+      lines,
+      stream: streamFilter,
+    });
+
+    return {
+      project: { id: project.id, name: project.name },
+      count: entries.length,
+      entries,
+    };
+  });
+
   // GET /process/status/:projectId
   app.get<{ Params: { projectId: string } }>(
     '/process/status/:projectId',

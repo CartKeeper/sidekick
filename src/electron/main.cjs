@@ -1,85 +1,184 @@
+// src/electron/main.cjs — Sidekick Electron main process
+// Features: server spawn, window management, dock mode, system tray, auto-lock
+
+// Strip ELECTRON_RUN_AS_NODE before importing electron — if this env var is set
+// (e.g. inherited from a parent Sidekick server process), the Electron binary
+// runs as plain Node and `app` will be undefined. Deleting it here and
+// re-execing ensures the binary restarts in proper Electron mode.
+if (process.env.ELECTRON_RUN_AS_NODE) {
+  delete process.env.ELECTRON_RUN_AS_NODE;
+  const { spawnSync } = require('node:child_process');
+  const result = spawnSync(process.execPath, process.argv.slice(1), {
+    stdio: 'inherit',
+    env: process.env,
+  });
+  process.exit(result.status ?? 1);
+}
+
 const { app, BrowserWindow, shell, ipcMain, Tray, Menu, screen, nativeImage } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const { spawn } = require('node:child_process');
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
-const SERVER_PORT = 3778;
+const SERVER_PORT = 9999;
 const VITE_PORT = 5173;
+
+const STRIP_WIDTH = 72;
+const PANEL_WIDTH = 600;
+
+const DEFAULT_WINDOW_WIDTH = 1100;
+const DEFAULT_WINDOW_HEIGHT = 750;
+const MIN_WINDOW_WIDTH = 800;
+const MIN_WINDOW_HEIGHT = 600;
+
+const AUTO_LOCK_DEFAULT_MS = 30 * 60 * 1000; // 30 minutes
+const AUTO_LOCK_MIN_MS = 60_000;              // 1 minute
+const AUTO_LOCK_MAX_MS = 86_400_000;          // 24 hours
+
+const BG_COLOR = '#0a0a0f';
+
+// ─── State ───────────────────────────────────────────────────────────────────
 
 let mainWindow = null;
 let serverProcess = null;
 let tray = null;
-let dockMode = false; // Start in normal window mode (dock mode available via tray/menu)
+let dockMode = false;
 let panelOpen = false;
 let autoLockTimer = null;
-const AUTO_LOCK_MS = 30 * 60 * 1000; // 30 minutes
+let autoLockMs = AUTO_LOCK_DEFAULT_MS; // number = ms, null = disabled
 
-// --- Dock geometry ---
-const STRIP_WIDTH = 52;
-const PANEL_WIDTH = 408;
-const TOTAL_DOCKED_WIDTH = STRIP_WIDTH + PANEL_WIDTH;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getAppRoot() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'app')
+    : path.join(__dirname, '..', '..');
+}
+
+function getLoadURL() {
+  return isDev
+    ? `http://localhost:${VITE_PORT}`
+    : `http://localhost:${SERVER_PORT}`;
+}
+
+// ─── Preferences ─────────────────────────────────────────────────────────────
+
+function getPrefsPath() {
+  return path.join(app.getPath('userData'), 'prefs.json');
+}
+
+function readPrefs() {
+  try {
+    return JSON.parse(fs.readFileSync(getPrefsPath(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function writePrefs(patch) {
+  const current = readPrefs();
+  const next = { ...current, ...patch };
+  try {
+    fs.writeFileSync(getPrefsPath(), JSON.stringify(next, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to save prefs:', err);
+  }
+  return next;
+}
+
+// ─── Dock Geometry ───────────────────────────────────────────────────────────
+
+function resolveDockDisplay() {
+  const displays = screen.getAllDisplays();
+  const prefs = readPrefs();
+
+  // 1) Explicit saved display
+  if (prefs.dockDisplayId != null) {
+    const match = displays.find((d) => d.id === prefs.dockDisplayId);
+    if (match) return match;
+  }
+
+  // 2) Display the main window is currently on (when toggling into dock mode)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      const b = mainWindow.getBounds();
+      return screen.getDisplayMatching(b);
+    } catch {
+      // fall through
+    }
+  }
+
+  // 3) Primary fallback
+  return screen.getPrimaryDisplay();
+}
 
 function getDockBounds() {
-  const display = screen.getPrimaryDisplay();
-  const { width: screenW, height: screenH } = display.workAreaSize;
-  const { x: workX, y: workY } = display.workArea;
+  const display = resolveDockDisplay();
+  const { workArea } = display;
+  const prefs = readPrefs();
+  const edge = prefs.dockEdge === 'left' ? 'left' : 'right';
+  const w = panelOpen ? STRIP_WIDTH + PANEL_WIDTH : STRIP_WIDTH;
 
-  if (panelOpen) {
-    return {
-      x: workX + screenW - TOTAL_DOCKED_WIDTH,
-      y: workY,
-      width: TOTAL_DOCKED_WIDTH,
-      height: screenH,
-    };
-  }
   return {
-    x: workX + screenW - STRIP_WIDTH,
-    y: workY,
-    width: STRIP_WIDTH,
-    height: screenH,
+    x: edge === 'left' ? workArea.x : workArea.x + workArea.width - w,
+    y: workArea.y,
+    width: w,
+    height: workArea.height,
   };
 }
 
-function startServer() {
-  const tsxPath = path.join(__dirname, '..', '..', 'node_modules', '.bin', 'tsx');
-  const serverPath = path.join(__dirname, '..', 'server', 'index.ts');
+// ─── Server Management ───────────────────────────────────────────────────────
 
-  serverProcess = spawn(tsxPath, [serverPath], {
-    cwd: path.join(__dirname, '..', '..'),
-    env: { ...process.env, PORT: String(SERVER_PORT) },
+function startServer() {
+  const appRoot = getAppRoot();
+  const tsxPath = path.join(appRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  const serverPath = path.join(appRoot, 'src', 'server', 'index.ts');
+
+  serverProcess = spawn(process.execPath, [tsxPath, serverPath], {
+    cwd: appRoot,
+    env: {
+      ...process.env,
+      PORT: String(SERVER_PORT),
+      ELECTRON_RUN_AS_NODE: '1',
+    },
     stdio: 'pipe',
   });
 
-  serverProcess.stdout.on('data', (data) => {
-    console.log(`[server] ${data.toString().trim()}`);
-  });
+  serverProcess.stdout.on('data', (d) => console.log(`[server] ${d.toString().trim()}`));
+  serverProcess.stderr.on('data', (d) => console.error(`[server] ${d.toString().trim()}`));
+  serverProcess.on('error', (err) => console.error('Failed to start server:', err));
 
-  serverProcess.stderr.on('data', (data) => {
-    console.error(`[server] ${data.toString().trim()}`);
-  });
-
-  serverProcess.on('error', (err) => {
-    console.error('Failed to start server:', err);
-  });
-
-  // Wait for server to be ready
   return new Promise((resolve) => {
-    const check = () => {
+    const poll = () => {
       fetch(`http://localhost:${SERVER_PORT}/api/auth/status`)
-        .then((res) => {
-          if (res.ok) resolve();
-          else setTimeout(check, 300);
-        })
-        .catch(() => setTimeout(check, 300));
+        .then((res) => (res.ok ? resolve() : setTimeout(poll, 300)))
+        .catch(() => setTimeout(poll, 300));
     };
-    setTimeout(check, 500);
+    setTimeout(poll, 500);
   });
 }
 
+function killServer() {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
+}
+
+// ─── Window Creation ─────────────────────────────────────────────────────────
+
 function createWindow() {
-  const display = screen.getPrimaryDisplay();
-  const { width: screenW, height: screenH } = display.workAreaSize;
-  const { x: workX, y: workY } = display.workArea;
+  const { workArea } = screen.getPrimaryDisplay();
+  const preload = path.join(__dirname, 'preload.cjs');
+
+  const commonWebPrefs = {
+    preload,
+    contextIsolation: true,
+    nodeIntegration: false,
+  };
 
   if (dockMode) {
     const bounds = getDockBounds();
@@ -87,83 +186,119 @@ function createWindow() {
       ...bounds,
       frame: false,
       transparent: false,
-      backgroundColor: '#0a0a0f',
+      backgroundColor: BG_COLOR,
       alwaysOnTop: true,
       skipTaskbar: true,
       resizable: false,
       hasShadow: true,
       roundedCorners: true,
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.cjs'),
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
+      webPreferences: commonWebPrefs,
       show: false,
     });
   } else {
-    const w = 1100;
-    const h = 750;
+    const w = DEFAULT_WINDOW_WIDTH;
+    const h = DEFAULT_WINDOW_HEIGHT;
     mainWindow = new BrowserWindow({
-      x: workX + Math.round((screenW - w) / 2),
-      y: workY + Math.round((screenH - h) / 2),
+      x: workArea.x + Math.round((workArea.width - w) / 2),
+      y: workArea.y + Math.round((workArea.height - h) / 2),
       width: w,
       height: h,
-      minWidth: 800,
-      minHeight: 600,
+      minWidth: MIN_WINDOW_WIDTH,
+      minHeight: MIN_WINDOW_HEIGHT,
       titleBarStyle: 'hiddenInset',
       trafficLightPosition: { x: 16, y: 16 },
-      backgroundColor: '#0a0a0f',
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.cjs'),
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
+      backgroundColor: BG_COLOR,
+      webPreferences: commonWebPrefs,
       show: false,
     });
   }
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-  });
+  mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  if (isDev) {
-    mainWindow.loadURL(`http://localhost:${VITE_PORT}`);
-  } else {
-    mainWindow.loadURL(`http://localhost:${SERVER_PORT}`);
-  }
+  mainWindow.loadURL(getLoadURL());
 
+  // Open external links in the OS browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
 
+  // Collapse panel when the dock window loses focus — unless the cursor is
+  // still hovering over Sidekick. That way, launching VS Code or the browser
+  // (which steals focus) doesn't close the panel while the user is still
+  // interacting with Sidekick.
   mainWindow.on('blur', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (dockMode && panelOpen) {
-      panelOpen = false;
-      const bounds = getDockBounds();
-      mainWindow.setBounds(bounds, true);
-      mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
+    if (!(dockMode && panelOpen)) return;
+
+    try {
+      const cursor = screen.getCursorScreenPoint();
+      const b = mainWindow.getBounds();
+      const inside =
+        cursor.x >= b.x &&
+        cursor.x < b.x + b.width &&
+        cursor.y >= b.y &&
+        cursor.y < b.y + b.height;
+      if (inside) return; // user is still on Sidekick; keep panel open
+    } catch {
+      // fall through to collapse on any cursor lookup failure
     }
+
+    panelOpen = false;
+    mainWindow.setBounds(getDockBounds(), true);
+    sendDockState();
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 
+  // Push initial dock state once the page loads
   mainWindow.webContents.on('did-finish-load', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
+    sendDockState();
   });
 }
+
+// ─── Window State Helpers ────────────────────────────────────────────────────
+
+function sendDockState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const prefs = readPrefs();
+    const edge = prefs.dockEdge === 'left' ? 'left' : 'right';
+    mainWindow.webContents.send('dock-state', { dockMode, panelOpen, dockEdge: edge });
+  }
+}
+
+function sendLockVault() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('lock-vault');
+  }
+}
+
+function showAndFocusWindow() {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function showDockPanel() {
+  if (!mainWindow) return;
+  panelOpen = true;
+  mainWindow.setBounds(getDockBounds(), true);
+  sendDockState();
+  showAndFocusWindow();
+}
+
+// ─── Mode Switching ──────────────────────────────────────────────────────────
+// Destroy the old window and create a fresh one with the correct config.
 
 function switchToDocked() {
   if (!mainWindow) return;
   dockMode = true;
   panelOpen = false;
-  const old = mainWindow;
+  mainWindow.destroy();
   mainWindow = null;
-  old.destroy();
   createWindow();
 }
 
@@ -171,148 +306,221 @@ function switchToDetached() {
   if (!mainWindow) return;
   dockMode = false;
   panelOpen = false;
-  const old = mainWindow;
+  mainWindow.destroy();
   mainWindow = null;
-  old.destroy();
   createWindow();
 }
 
 function togglePanel() {
   if (!dockMode || !mainWindow) return;
   panelOpen = !panelOpen;
-  const bounds = getDockBounds();
-  mainWindow.setBounds(bounds, true);
-  mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
-  if (panelOpen) {
-    mainWindow.focus();
-  }
+  mainWindow.setBounds(getDockBounds(), true);
+  sendDockState();
+  if (panelOpen) mainWindow.focus();
 }
 
+// ─── System Tray ─────────────────────────────────────────────────────────────
+
 function createTray() {
-  // Create a small SVG tray icon
-  const iconSize = 18;
-  const svgStr = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" xmlns="http://www.w3.org/2000/svg">
+  const size = 18;
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
     <circle cx="9" cy="9" r="7" fill="#6366f1"/>
     <path d="M7 8.5L9 6L11 8.5M9 6V12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </svg>`;
-  const icon = nativeImage.createFromBuffer(Buffer.from(svgStr));
 
-  tray = new Tray(icon.resize({ width: 18, height: 18 }));
+  const icon = nativeImage.createFromBuffer(Buffer.from(svg));
+  tray = new Tray(icon.resize({ width: size, height: size }));
   tray.setToolTip('Sidekick');
 
-  const updateMenu = () => {
-    const menu = Menu.buildFromTemplate([
-      {
-        label: 'Show Sidekick',
-        click: () => {
-          if (mainWindow) {
-            if (dockMode) {
-              panelOpen = true;
-              const bounds = getDockBounds();
-              mainWindow.setBounds(bounds, true);
-              mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
-              mainWindow.show();
-              mainWindow.focus();
-            } else {
-              mainWindow.show();
-              mainWindow.focus();
-            }
-          }
+  function rebuildMenu() {
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        {
+          label: 'Show Sidekick',
+          click: () => {
+            if (!mainWindow) return;
+            if (dockMode) showDockPanel();
+            else showAndFocusWindow();
+          },
         },
-      },
-      { type: 'separator' },
-      {
-        label: 'Dock Mode',
-        type: 'checkbox',
-        checked: dockMode,
-        click: () => {
-          if (dockMode) switchToDetached();
-          else switchToDocked();
-          updateMenu();
+        { type: 'separator' },
+        {
+          label: 'Dock Mode',
+          type: 'checkbox',
+          checked: dockMode,
+          click: () => {
+            if (dockMode) switchToDetached();
+            else switchToDocked();
+            rebuildMenu();
+          },
         },
-      },
-      { type: 'separator' },
-      {
-        label: 'Lock Vault',
-        click: () => {
-          if (mainWindow) {
-            mainWindow.webContents.send('lock-vault');
-          }
-        },
-      },
-      {
-        label: 'Quit Sidekick',
-        click: () => app.quit(),
-      },
-    ]);
-    tray.setContextMenu(menu);
-  };
+        { type: 'separator' },
+        { label: 'Lock Vault', click: sendLockVault },
+        { label: 'Quit Sidekick', click: () => app.quit() },
+      ])
+    );
+  }
 
-  updateMenu();
+  rebuildMenu();
+
   tray.on('click', () => {
-    if (mainWindow) {
-      if (dockMode) togglePanel();
-      else {
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    }
+    if (!mainWindow) return;
+    if (dockMode) togglePanel();
+    else showAndFocusWindow();
   });
 }
 
-// --- Auto-lock ---
+// ─── Auto-Lock ───────────────────────────────────────────────────────────────
+
 function resetAutoLock() {
-  if (autoLockTimer) clearTimeout(autoLockTimer);
+  if (autoLockTimer) {
+    clearTimeout(autoLockTimer);
+    autoLockTimer = null;
+  }
+  if (autoLockMs == null) return; // disabled
   autoLockTimer = setTimeout(() => {
-    if (mainWindow) {
-      mainWindow.webContents.send('lock-vault');
-    }
+    sendLockVault();
     console.log('[auto-lock] Vault locked after idle timeout');
-  }, AUTO_LOCK_MS);
+  }, autoLockMs);
 }
 
-// --- IPC Handlers ---
+function setAutoLockTimeout(ms) {
+  if (ms == null) {
+    autoLockMs = null;
+  } else {
+    autoLockMs = Math.max(AUTO_LOCK_MIN_MS, Math.min(ms, AUTO_LOCK_MAX_MS));
+  }
+  writePrefs({ autoLockMs });
+  resetAutoLock();
+}
+
+function loadAutoLockFromPrefs() {
+  const prefs = readPrefs();
+  if (Object.prototype.hasOwnProperty.call(prefs, 'autoLockMs')) {
+    const v = prefs.autoLockMs;
+    if (v === null) {
+      autoLockMs = null;
+    } else if (typeof v === 'number' && Number.isFinite(v)) {
+      autoLockMs = Math.max(AUTO_LOCK_MIN_MS, Math.min(v, AUTO_LOCK_MAX_MS));
+    }
+  }
+}
+
+// ─── IPC ─────────────────────────────────────────────────────────────────────
+
 function setupIPC() {
   ipcMain.on('toggle-panel', () => togglePanel());
   ipcMain.on('switch-to-docked', () => switchToDocked());
   ipcMain.on('switch-to-detached', () => switchToDetached());
-  ipcMain.on('get-dock-state', (event) => {
-    event.returnValue = { dockMode, panelOpen };
+  ipcMain.on('get-dock-state', (e) => {
+    const prefs = readPrefs();
+    const edge = prefs.dockEdge === 'left' ? 'left' : 'right';
+    e.returnValue = { dockMode, panelOpen, dockEdge: edge };
+  });
+
+  // List available displays for the Preferences UI
+  ipcMain.handle('list-displays', () => {
+    const primary = screen.getPrimaryDisplay();
+    const all = screen.getAllDisplays();
+    // Sort visually left-to-right by horizontal bounds, then top-to-bottom
+    const sorted = [...all].sort((a, b) =>
+      a.bounds.x !== b.bounds.x ? a.bounds.x - b.bounds.x : a.bounds.y - b.bounds.y
+    );
+    // Locate the display the cursor is on so we can mark "where you are now"
+    let cursorDisplayId = null;
+    try {
+      cursorDisplayId = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
+    } catch {}
+
+    return sorted.map((d, idx) => {
+      const position =
+        sorted.length === 1
+          ? ''
+          : idx === 0
+            ? ' — leftmost'
+            : idx === sorted.length - 1
+              ? ' — rightmost'
+              : ` — position ${idx + 1}`;
+      const flags = [];
+      if (d.id === primary.id) flags.push('primary');
+      if (d.id === cursorDisplayId) flags.push('cursor here');
+      const flagStr = flags.length ? ` (${flags.join(', ')})` : '';
+
+      return {
+        id: d.id,
+        label: `${d.workArea.width}×${d.workArea.height}${position}${flagStr}`,
+        bounds: d.bounds,
+        workArea: d.workArea,
+        isPrimary: d.id === primary.id,
+        isCursor: d.id === cursorDisplayId,
+      };
+    });
+  });
+
+  ipcMain.handle('get-dock-position', () => {
+    const prefs = readPrefs();
+    return {
+      displayId: prefs.dockDisplayId ?? null,
+      edge: prefs.dockEdge === 'left' ? 'left' : 'right',
+    };
+  });
+
+  ipcMain.handle('set-dock-position', (_e, { displayId, edge }) => {
+    const patch = {};
+    if (displayId === null || typeof displayId === 'number') patch.dockDisplayId = displayId;
+    if (edge === 'left' || edge === 'right') patch.dockEdge = edge;
+    writePrefs(patch);
+    if (dockMode && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setBounds(getDockBounds(), true);
+    }
+    sendDockState();
+    return { ok: true };
   });
   ipcMain.on('user-activity', () => resetAutoLock());
-  ipcMain.on('set-auto-lock-timeout', (_event, ms) => {
-    // Allow configurable timeout (min 1 min, max 24 hours)
-    const clamped = Math.max(60000, Math.min(ms, 86400000));
-    if (autoLockTimer) clearTimeout(autoLockTimer);
-    autoLockTimer = setTimeout(() => {
-      if (mainWindow) {
-        mainWindow.webContents.send('lock-vault');
+  ipcMain.on('set-auto-lock-timeout', (_e, ms) => setAutoLockTimeout(ms));
+  ipcMain.handle('get-auto-lock-timeout', () => autoLockMs);
+  ipcMain.on('open-external', (_e, url) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch((err) => console.error('openExternal failed:', err));
+    }
+  });
+  ipcMain.on('open-in-vscode', (_e, projectPath) => {
+    if (typeof projectPath !== 'string' || !projectPath) return;
+    // Try `code` on PATH; fall back to macOS `open -b com.microsoft.VSCode`
+    const child = spawn('code', [projectPath], { detached: true, stdio: 'ignore' });
+    child.on('error', () => {
+      if (process.platform === 'darwin') {
+        spawn('open', ['-b', 'com.microsoft.VSCode', projectPath], {
+          detached: true,
+          stdio: 'ignore',
+        }).unref();
+      } else {
+        console.error('VS Code not found on PATH');
       }
-    }, clamped);
+    });
+    child.unref();
   });
 }
 
-// --- Single instance ---
-const gotTheLock = app.requestSingleInstanceLock();
+// ─── Single Instance Lock ────────────────────────────────────────────────────
+
+// In dev mode, skip the lock so dev can run alongside the installed app
+const gotTheLock = isDev ? true : app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
-} else {
+} else if (!isDev) {
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (dockMode) {
-        panelOpen = true;
-        const bounds = getDockBounds();
-        mainWindow.setBounds(bounds, true);
-        mainWindow.webContents.send('dock-state', { dockMode, panelOpen });
-      }
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    if (!mainWindow) return;
+    if (dockMode) showDockPanel();
+    else showAndFocusWindow();
   });
 }
+
+// ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
   setupIPC();
+  loadAutoLockFromPrefs();
   await startServer();
   console.log('API server ready');
   createWindow();
@@ -321,7 +529,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  // Don't quit — keep tray alive
+  // Keep tray alive — don't quit
 });
 
 app.on('activate', () => {
@@ -331,9 +539,6 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
-  }
+  killServer();
   if (autoLockTimer) clearTimeout(autoLockTimer);
 });

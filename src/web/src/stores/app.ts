@@ -31,7 +31,11 @@ interface AppState {
   // Dock
   dockMode: boolean;
   panelOpen: boolean;
+  dockEdge: 'left' | 'right';
   activeTab: string; // 'main' or a processId
+
+  // Top-level view
+  view: 'projects' | 'ports';
 
   // Actions
   checkAuth: () => Promise<void>;
@@ -55,7 +59,9 @@ interface AppState {
   // Dock actions
   setDockMode: (mode: boolean) => void;
   setPanelOpen: (open: boolean) => void;
+  setDockEdge: (edge: 'left' | 'right') => void;
   setActiveTab: (tab: string) => void;
+  setView: (view: 'projects' | 'ports') => void;
 
   // Process actions
   launchProject: (projectId: string) => Promise<void>;
@@ -65,6 +71,35 @@ interface AppState {
   appendOutput: (processId: string, data: string) => void;
   handleProcessExit: (processId: string) => void;
   fetchProcessStatus: () => Promise<void>;
+}
+
+// no-cors lets us probe cross-origin dev servers without CORS rejection —
+// any non-thrown response means something is listening.
+async function waitForUrl(url: string, timeoutMs = 15000, intervalMs = 500): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      return true;
+    } catch {
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+  }
+  return false;
+}
+
+function runLaunchActions(project: Project, set: (partial: Partial<AppState>) => void) {
+  if (project.enable_terminal) {
+    set({ activeTab: `project:${project.id}`, panelOpen: true });
+  }
+  if (project.enable_vscode && project.path) {
+    window.sidekick?.openInVscode(project.path);
+  }
+  if (project.enable_browser && project.dev_url) {
+    const url = project.dev_url;
+    // .finally so a timed-out poll still opens the browser rather than stranding the user.
+    waitForUrl(url).finally(() => window.sidekick?.openExternal(url));
+  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -97,7 +132,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Dock defaults
   dockMode: true,
   panelOpen: false,
+  dockEdge: 'right',
   activeTab: 'main',
+  view: 'projects',
 
   // Auth actions
   checkAuth: async () => {
@@ -156,7 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ currentProjectId: null, currentProject: null, currentEnvId: null, secrets: [] });
       return;
     }
-    set({ currentProjectId: id, loading: true });
+    set({ currentProjectId: id, loading: true, view: 'projects' });
     try {
       const project = await api.projects.get(id);
       const defaultEnv = project.environments?.find(
@@ -220,7 +257,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Dock actions
   setDockMode: (mode) => set({ dockMode: mode }),
   setPanelOpen: (open) => set({ panelOpen: open }),
+  setDockEdge: (edge) => set({ dockEdge: edge }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setView: (view) => set({ view }),
 
   // Process actions
   launchProject: async (projectId) => {
@@ -232,6 +271,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }));
       }
       get().fetchProjects(); // refresh to update running status
+
+      const project = get().projects.find((p) => p.id === projectId);
+      if (project) runLaunchActions(project, set);
     } catch (err: unknown) {
       set({ error: err instanceof Error ? err.message : 'Launch failed' });
     }
@@ -258,6 +300,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...(result.processes || []),
         ],
       }));
+
+      const project = get().projects.find((p) => p.id === projectId);
+      if (project) runLaunchActions(project, set);
     } catch (err: unknown) {
       set({ error: err instanceof Error ? err.message : 'Restart failed' });
     }

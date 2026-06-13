@@ -95,6 +95,27 @@ export function SecretRow({ secret }: SecretRowProps) {
           {(secret.type || 'generic').replace(/_/g, ' ')}
         </span>
 
+        {/* Supabase managed badge */}
+        {secret.source === 'supabase' && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              height: '20px',
+              padding: '0 6px',
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#3ecf8e',
+              backgroundColor: 'rgba(62,207,142,0.1)',
+              borderRadius: '4px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            supabase
+          </span>
+        )}
+
         {/* Actions — visible on hover */}
         <div
           style={{

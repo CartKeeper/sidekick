@@ -551,6 +551,46 @@ server.tool(
 );
 
 server.tool(
+  'get_process_logs',
+  'Read recent stdout/stderr output from a running (or recently stopped) project. Fetches the live buffer from the Sidekick server, so the project must have been launched from the UI or via launch_project.',
+  {
+    identifier: z.string().describe('Project name or ID'),
+    lines: z.number().int().positive().max(10000).optional().describe('Number of most-recent log entries to return (default: 200)'),
+    stream: z.enum(['stdout', 'stderr', 'all']).optional().describe('Filter by stream (default: all)'),
+  },
+  async ({ identifier, lines, stream }) => {
+    const project = findProject(identifier);
+    if (!project) return text(`Project "${identifier}" not found.`);
+
+    const port = process.env.SIDEKICK_PORT || '9999';
+    const params = new URLSearchParams();
+    params.set('lines', String(lines ?? 200));
+    if (stream && stream !== 'all') params.set('stream', stream);
+
+    let payload: any;
+    try {
+      const res = await fetch(`http://localhost:${port}/api/process/logs/${project.id}?${params.toString()}`);
+      if (!res.ok) {
+        return text(`Failed to fetch logs (HTTP ${res.status}). Is the Sidekick app running?`);
+      }
+      payload = await res.json();
+    } catch (err: any) {
+      return text(`Could not reach Sidekick server on port ${port}: ${err.message}`);
+    }
+
+    const entries = payload.entries as Array<{ ts: string; stream: string; data: string; commandName: string }>;
+    if (!entries || entries.length === 0) {
+      return text(`No buffered logs for "${project.name}". Has it been launched in this session?`);
+    }
+
+    const formatted = entries
+      .map((e) => `[${e.ts}] [${e.commandName}/${e.stream}] ${e.data.replace(/\n$/, '')}`)
+      .join('\n');
+    return text(formatted);
+  }
+);
+
+server.tool(
   'restart_project',
   'Restart all processes for a project (stop + relaunch)',
   {

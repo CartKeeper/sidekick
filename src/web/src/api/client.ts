@@ -115,6 +115,14 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export interface PortListener {
+  pid: number;
+  command: string;
+  fullCommand: string;
+  user: string;
+  ports: { address: string; port: number; protocol: 'TCP' }[];
+}
+
 export interface Stats {
   projectCount: number;
   secretCount: number;
@@ -198,6 +206,11 @@ export const api = {
     detect: () => get<{ sources: any[]; preview: any }>('/migration/detect'),
     run: (infiscalPassword?: string) =>
       post<{ imported: any; errors: string[] }>('/migration/run', { infiscalPassword }),
+  },
+  ports: {
+    list: () => get<{ listeners: PortListener[] }>('/ports'),
+    kill: (pid: number, force = false) =>
+      del<{ success: boolean; signal: string }>(`/ports/${pid}${force ? '?force=true' : ''}`),
   },
   supabase: {
     listProjects: (accessToken: string) =>

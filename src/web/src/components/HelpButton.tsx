@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { LifeBuoy, X, Keyboard, FileText } from 'lucide-react';
+import { LifeBuoy, X, Keyboard, FileText, Copy, Check, Cpu } from 'lucide-react';
 
 const APP_VERSION = '0.1.0';
 
@@ -15,9 +15,20 @@ const SHORTCUTS = [
 export function HelpButton() {
   const [open, setOpen] = useState(false);
   const [tooltip, setTooltip] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [mcpConfig, setMcpConfig] = useState<string | null>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Fetch MCP config when panel opens
+  useEffect(() => {
+    if (!open || mcpConfig) return;
+    fetch('/api/mcp-config')
+      .then((r) => r.json())
+      .then((data) => setMcpConfig(JSON.stringify(data, null, 2)))
+      .catch(() => setMcpConfig(null));
+  }, [open, mcpConfig]);
 
   // Close on Escape
   useEffect(() => {
@@ -247,7 +258,79 @@ export function HelpButton() {
             </div>
           </div>
 
-          {/* Footer: Docs + version */}
+          {/* Claude / MCP Integration */}
+          <div style={{ padding: '12px 16px 0', borderTop: '1px solid #2a2a3a' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <Cpu size={13} color="#6b6b80" />
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#6b6b80',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Claude / MCP Integration
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: '#a1a1b5', margin: '0 0 8px', lineHeight: 1.4 }}>
+              Add this to your Claude config to let Claude access your projects and secrets:
+            </p>
+            {mcpConfig && (
+              <div style={{ position: 'relative' }}>
+                <pre
+                  style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    color: '#a1a1b5',
+                    backgroundColor: '#0d0d14',
+                    border: '1px solid #2a2a3a',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    margin: 0,
+                    overflowX: 'auto',
+                    lineHeight: 1.4,
+                    whiteSpace: 'pre',
+                  }}
+                >
+                  {mcpConfig}
+                </pre>
+                <button
+                  type="button"
+                  title="Copy to clipboard"
+                  onClick={() => {
+                    navigator.clipboard.writeText(mcpConfig);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '6px',
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#1a1a25',
+                    border: '1px solid #2a2a3a',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    color: copied ? '#a6e3a1' : '#6b6b80',
+                    transition: 'color 150ms ease',
+                  }}
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                </button>
+              </div>
+            )}
+            <p style={{ fontSize: '11px', color: '#585b70', margin: '6px 0 0', lineHeight: 1.4 }}>
+              Works with Claude Code, Claude Desktop, and any MCP client.
+            </p>
+          </div>
+
+          {/* Footer: version */}
           <div
             style={{
               padding: '12px 16px',

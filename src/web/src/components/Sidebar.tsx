@@ -1,10 +1,10 @@
-import { Plus, Lock, LifeBuoy } from 'lucide-react';
+import { Plus, Lock, RefreshCw, Network } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ProjectCard } from './ProjectCard';
 import { AddProjectModal } from './AddProjectModal';
 
 export function Sidebar() {
-  const { projects, stats, lock, addProjectOpen, setAddProjectOpen } = useAppStore();
+  const { projects, stats, lock, addProjectOpen, setAddProjectOpen, fetchProjects, fetchStats, currentProjectId, selectProject, view, setView } = useAppStore();
 
   const activeProjects = projects.filter((p) => !p.archived);
 
@@ -65,6 +65,40 @@ export function Sidebar() {
           >
             Projects
           </span>
+          <div style={{ display: 'flex', gap: '2px' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              await fetchProjects();
+              await fetchStats();
+              if (currentProjectId) selectProject(currentProjectId);
+            }}
+            title="Refresh projects"
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: '#6b6b80',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 150ms ease, color 150ms ease',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
+              (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+              (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
+            }}
+          >
+            <RefreshCw size={12} />
+          </button>
           <button
             type="button"
             onClick={() => setAddProjectOpen(true)}
@@ -94,6 +128,7 @@ export function Sidebar() {
           >
             <Plus size={14} />
           </button>
+          </div>
         </div>
 
         {/* Scrollable project list */}
@@ -177,34 +212,42 @@ export function Sidebar() {
               gap: '8px',
             }}
           >
-            {/* Help icon */}
+            {/* Ports button */}
             <button
               type="button"
-              title="Help"
+              onClick={() => setView(view === 'ports' ? 'projects' : 'ports')}
+              title="View port listeners"
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: '#6b6b80',
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background-color 150ms ease, color 150ms ease',
-                flexShrink: 0,
+                gap: '6px',
+                height: '32px',
+                padding: '0 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: view === 'ports' ? '#a5b4fc' : '#6b6b80',
+                backgroundColor: view === 'ports' ? 'rgba(99,102,241,0.12)' : 'transparent',
+                border: `1px solid ${view === 'ports' ? 'rgba(99,102,241,0.4)' : '#2a2a3a'}`,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'background-color 150ms ease, color 150ms ease, border-color 150ms ease',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
-                (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
+                if (view === 'ports') return;
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.backgroundColor = '#222230';
+                btn.style.color = '#e4e4ed';
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-                (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
+                if (view === 'ports') return;
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.backgroundColor = 'transparent';
+                btn.style.color = '#6b6b80';
               }}
             >
-              <LifeBuoy size={16} />
+              <Network size={12} />
+              Ports
             </button>
 
             {/* Lock button */}

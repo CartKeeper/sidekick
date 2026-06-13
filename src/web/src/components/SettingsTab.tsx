@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FolderOpen, AlertTriangle, Loader2 } from 'lucide-react';
+import { FolderOpen, AlertTriangle, Loader2, Upload, X as XIcon } from 'lucide-react';
 import { api, type Project, type Environment } from '../api/client';
 import { useAppStore } from '../stores/app';
 
@@ -74,9 +74,13 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const [color, setColor] = useState(project.color ?? PRESET_COLORS[0]);
   const [stackInput, setStackInput] = useState((project.stack ?? []).join(', '));
   const [savedField, setSavedField] = useState<string | null>(null);
+  const [iconPath, setIconPath] = useState(project.icon_path ?? '');
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Keep local state synced if project changes (e.g., after re-fetch)
   useEffect(() => {
@@ -84,6 +88,7 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
     setDescription(project.description ?? '');
     setPath(project.path ?? '');
     setIcon(project.icon ?? '📁');
+    setIconPath(project.icon_path ?? '');
     setColor(project.color ?? PRESET_COLORS[0]);
     setStackInput((project.stack ?? []).join(', '));
   }, [project.id]);
@@ -114,6 +119,9 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       await api.projects.archive(project.id);
       await fetchProjects();
       selectProject(null);
+    } catch (err: unknown) {
+      console.error('Archive failed:', err);
+      setArchiveError(err instanceof Error ? err.message : 'Archive failed');
     } finally {
       setArchiving(false);
       setArchiveConfirm(false);
@@ -213,6 +221,115 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           Icon
           <SavedIndicator show={savedField === 'icon'} />
         </label>
+
+        {/* Current icon preview */}
+        {iconPath && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <img
+              src={`/api/projects/icon/${iconPath.split('/').pop()}`}
+              alt="Project icon"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                objectFit: 'cover',
+                border: '2px solid #6366f1',
+                backgroundColor: '#1a1a25',
+              }}
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                setIconPath('');
+                await saveField({ icon_path: '' }, 'icon');
+              }}
+              style={{
+                height: '28px',
+                padding: '0 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#f38ba8',
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(243,139,168,0.3)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'background-color 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(243,139,168,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <XIcon size={10} />
+              Remove
+            </button>
+          </div>
+        )}
+
+        {/* Upload button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            style={{ display: 'none' }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                const result = await api.projects.uploadIcon(project.id, file);
+                setIconPath(result.icon_path);
+                showSaved('icon');
+                onUpdate();
+              } catch (err: unknown) {
+                console.error('Icon upload failed:', err);
+              }
+              // Reset input so re-uploading the same file triggers onChange
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#a1a1b5',
+              backgroundColor: '#1a1a25',
+              border: '1px solid #2a2a3a',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'border-color 150ms ease, color 150ms ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#6366f1';
+              e.currentTarget.style.color = '#e4e4ed';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#2a2a3a';
+              e.currentTarget.style.color = '#a1a1b5';
+            }}
+          >
+            <Upload size={13} />
+            Upload Logo
+          </button>
+          <span style={{ fontSize: '11px', color: '#585b70' }}>PNG, JPG, WebP, SVG</span>
+        </div>
+
+        {/* Emoji presets */}
+        <p style={{ fontSize: '12px', color: '#6b6b80', marginBottom: '6px' }}>
+          Or choose an emoji:
+        </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {PRESET_ICONS.map((ic) => (
             <button
@@ -227,8 +344,8 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 height: '36px',
                 fontSize: '18px',
                 borderRadius: '8px',
-                border: icon === ic ? '2px solid #6366f1' : '2px solid transparent',
-                backgroundColor: icon === ic ? 'rgba(99,102,241,0.15)' : '#1a1a25',
+                border: icon === ic && !iconPath ? '2px solid #6366f1' : '2px solid transparent',
+                backgroundColor: icon === ic && !iconPath ? 'rgba(99,102,241,0.15)' : '#1a1a25',
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
                 display: 'flex',
@@ -241,7 +358,7 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           ))}
         </div>
         <p style={{ fontSize: '12px', color: '#6b6b80', marginTop: '6px' }}>
-          Or type a custom emoji:
+          Custom emoji:
         </p>
         <input
           type="text"
@@ -437,6 +554,11 @@ export function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             </button>
           )}
         </div>
+        {archiveError && (
+          <p style={{ fontSize: '13px', color: '#f38ba8', marginTop: '8px' }}>
+            {archiveError}
+          </p>
+        )}
       </div>
     </div>
   );

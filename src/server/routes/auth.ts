@@ -1,6 +1,7 @@
 // src/server/routes/auth.ts
 import type { FastifyInstance } from 'fastify';
 import { getConfig, setConfig, logAudit } from '../../core/db.js';
+import { autoSyncSupabase } from './supabase.js';
 import {
   generateSalt,
   deriveKey,
@@ -60,6 +61,10 @@ export async function authRoutes(app: FastifyInstance) {
     const salt = getConfig(app.db, 'encryption_salt')!;
     const key = deriveKey(password, salt);
     app.vault.setKey(key);
+
+    // Auto-sync Supabase projects in background (non-blocking)
+    autoSyncSupabase(app.db, key).catch(() => {});
+
     return { success: true };
   });
 

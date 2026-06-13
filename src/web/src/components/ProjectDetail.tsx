@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app';
 import { SecretsTab } from './SecretsTab';
 import { LaunchTab } from './LaunchTab';
 import { SettingsTab } from './SettingsTab';
+import { ProjectIcon } from './ProjectIcon';
 
 type Tab = 'secrets' | 'launch' | 'settings';
 
@@ -44,19 +45,14 @@ export function ProjectDetail() {
           flexShrink: 0,
         }}
       >
-        {currentProject.icon && /\p{Emoji}/u.test(currentProject.icon) ? (
-          <span style={{ fontSize: '24px', lineHeight: 1 }}>{currentProject.icon}</span>
-        ) : (
-          <div
-            style={{
-              width: '14px',
-              height: '14px',
-              borderRadius: '50%',
-              backgroundColor: currentProject.color || '#6366f1',
-              flexShrink: 0,
-            }}
-          />
-        )}
+        <ProjectIcon
+          icon={currentProject.icon}
+          iconPath={currentProject.icon_path}
+          color={currentProject.color}
+          name={currentProject.name}
+          size={32}
+          borderRadius={8}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1
             style={{

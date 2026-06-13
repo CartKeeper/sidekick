@@ -9,10 +9,16 @@ export function DockLayout() {
   const {
     panelOpen,
     activeTab,
+    dockEdge,
     setActiveTab,
     setPanelOpen,
-    lock,
   } = useAppStore();
+
+  // Fetch projects on mount so dock strip icons appear immediately
+  useEffect(() => {
+    useAppStore.getState().fetchProjects();
+    useAppStore.getState().fetchStats();
+  }, []);
 
   // Connect to SSE process output stream
   useEffect(() => {
@@ -63,10 +69,6 @@ export function DockLayout() {
     }
   }, []);
 
-  const handleLock = useCallback(() => {
-    lock();
-  }, [lock]);
-
   // Escape key closes the panel
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -85,22 +87,22 @@ export function DockLayout() {
     <div
       style={{
         display: 'flex',
+        flexDirection: dockEdge === 'left' ? 'row-reverse' : 'row',
         height: '100vh',
         backgroundColor: '#0a0a0f',
         overflow: 'hidden',
       }}
     >
-      {/* Panel slides in from left when open */}
+      {/* Panel slides in next to the strip when open */}
       <AnimatePresence>
         {panelOpen && <DockPanel activeTab={activeTab} />}
       </AnimatePresence>
 
-      {/* Strip is always the rightmost element (screen edge) */}
+      {/* Strip sits on the screen edge (right by default, left if configured) */}
       <DockStrip
         activeTab={activeTab}
         onTabClick={handleTabClick}
         onUndock={handleUndock}
-        onLock={handleLock}
       />
     </div>
   );

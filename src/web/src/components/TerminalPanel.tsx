@@ -146,10 +146,9 @@ export function TerminalPanel({
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#0d0d14',
-        border: '1px solid #2a2a3a',
-        borderRadius: '12px',
         overflow: 'hidden',
-        minHeight: '200px',
+        flex: 1,
+        minHeight: 0,
       }}
     >
       {/* Control bar */}
@@ -300,8 +299,7 @@ export function TerminalPanel({
           lineHeight: 1.4,
           color: '#cdd6f4',
           backgroundColor: '#0a0a0f',
-          minHeight: '160px',
-          maxHeight: '400px',
+          minHeight: 0,
         }}
       >
         {displayLines.length === 0 ? (
