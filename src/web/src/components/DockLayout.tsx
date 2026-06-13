@@ -85,13 +85,9 @@ export function DockLayout() {
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: dockEdge === 'left' ? 'row-reverse' : 'row',
-        height: '100vh',
-        backgroundColor: '#0a0a0f',
-        overflow: 'hidden',
-      }}
+      className="bg-void overflow-hidden h-screen flex"
+      // COMPUTED: flexDirection driven by dockEdge runtime value — must stay inline
+      style={{ flexDirection: dockEdge === 'left' ? 'row-reverse' : 'row' }}
     >
       {/* Panel slides in next to the strip when open */}
       <AnimatePresence>
