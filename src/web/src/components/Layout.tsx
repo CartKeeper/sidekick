@@ -6,8 +6,8 @@ import { connectProcessStream } from '../api/client';
 import { Sidebar } from './Sidebar';
 import { ProjectDetail } from './ProjectDetail';
 import { PortsTab } from './PortsTab';
+import { IconButton } from './ui';
 
-// Placeholder until ProjectDetail is implemented in the next task
 function WelcomeDashboard() {
   const { stats } = useAppStore();
 
@@ -16,121 +16,46 @@ function WelcomeDashboard() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        gap: '24px',
-        color: '#6b6b80',
-        textAlign: 'center',
-      }}
+      className="flex flex-col items-center justify-center h-full gap-6 text-text-muted text-center"
     >
-      <div
-        style={{
-          width: '64px',
-          height: '64px',
-          borderRadius: '16px',
-          backgroundColor: 'rgba(99,102,241,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <FolderOpen size={28} color="#6366f1" />
+      <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+        <FolderOpen size={28} className="text-accent" />
       </div>
 
       <div>
-        <h2
-          style={{
-            fontSize: '20px',
-            fontWeight: 600,
-            color: '#e4e4ed',
-            margin: '0 0 8px',
-          }}
-        >
+        <h2 className="text-[20px] font-semibold text-text-primary mb-2">
           Select a project
         </h2>
-        <p
-          style={{
-            fontSize: '14px',
-            color: '#6b6b80',
-            margin: 0,
-            maxWidth: '320px',
-          }}
-        >
+        <p className="text-[14px] text-text-muted max-w-[320px]">
           Choose a project from the sidebar to view its secrets and environments.
         </p>
       </div>
 
       {stats && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '32px',
-            padding: '16px 32px',
-            backgroundColor: '#1a1a25',
-            border: '1px solid #2a2a3a',
-            borderRadius: '12px',
-          }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#e4e4ed',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+        <div className="flex gap-8 px-8 py-4 bg-surface border border-border-default rounded-xl">
+          <div className="text-center">
+            <div className="text-[28px] font-bold text-text-primary tabular-nums">
               {stats.projectCount}
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b6b80', marginTop: '2px' }}>
+            <div className="text-[12px] font-semibold text-text-muted mt-0.5">
               Projects
             </div>
           </div>
-          <div
-            style={{
-              width: '1px',
-              backgroundColor: '#2a2a3a',
-              alignSelf: 'stretch',
-            }}
-          />
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#e4e4ed',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+          <div className="w-px bg-border-default self-stretch" />
+          <div className="text-center">
+            <div className="text-[28px] font-bold text-text-primary tabular-nums">
               {stats.secretCount}
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b6b80', marginTop: '2px' }}>
+            <div className="text-[12px] font-semibold text-text-muted mt-0.5">
               Secrets
             </div>
           </div>
-          <div
-            style={{
-              width: '1px',
-              backgroundColor: '#2a2a3a',
-              alignSelf: 'stretch',
-            }}
-          />
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#e4e4ed',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+          <div className="w-px bg-border-default self-stretch" />
+          <div className="text-center">
+            <div className="text-[28px] font-bold text-text-primary tabular-nums">
               {stats.environmentCount}
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b6b80', marginTop: '2px' }}>
+            <div className="text-[12px] font-semibold text-text-muted mt-0.5">
               Environments
             </div>
           </div>
@@ -177,83 +102,28 @@ export function Layout() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        backgroundColor: '#0a0a0f',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex flex-col h-screen bg-void overflow-hidden">
       {/* Electron drag region at top */}
       <div
-        className="drag-region"
-        style={{
-          height: '40px',
-          flexShrink: 0,
-          backgroundColor: '#12121a',
-          borderBottom: '1px solid #2a2a3a',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          paddingRight: '12px',
-        }}
+        className="drag-region h-10 shrink-0 bg-abyss border-b border-border-default
+                   flex items-center justify-end pr-3"
       >
         {/* Dock button — return to docked sidebar mode */}
-        <button
-          type="button"
+        <IconButton
+          aria-label="Dock to screen edge"
           className="no-drag"
-          title="Dock to screen edge"
           onClick={handleDock}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: '#6b6b80',
-            transition: 'background-color 150ms ease, color 150ms ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
-            (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
-          }}
         >
           <PanelRightClose size={16} />
-        </button>
+        </IconButton>
       </div>
 
       {/* App body: sidebar + content */}
-      <div
-        style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden',
-        }}
-      >
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
 
         {/* Main content area */}
-        <main
-          className="no-drag"
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            overflowX: 'hidden',
-            padding: '24px',
-            minWidth: 0,
-          }}
-        >
+        <main className="no-drag flex-1 overflow-auto overflow-x-hidden p-6 min-w-0">
           {view === 'ports' ? (
             <PortsTab />
           ) : currentProjectId ? (
