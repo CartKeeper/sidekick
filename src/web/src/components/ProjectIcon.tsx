@@ -42,12 +42,14 @@ export function ProjectIcon({
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: `${borderRadius}px`,
+        // DATA: color is a user-chosen project color stored in DB
         backgroundColor: `${color}22`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: hasEmoji ? `${Math.round(size * 0.54)}px` : `${Math.round(size * 0.46)}px`,
         fontWeight: 700,
+        // DATA: color is a user-chosen project color stored in DB
         color: color,
         fontFamily: hasEmoji ? undefined : 'var(--font-mono, monospace)',
         flexShrink: 0,
