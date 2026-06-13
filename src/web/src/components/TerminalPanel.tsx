@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Square, RefreshCw, X as XIcon, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { parseAnsi } from '../lib/ansi';
+import { IconButton, cn } from './ui';
 
 interface TerminalPanelProps {
   processId: string;
@@ -84,226 +85,105 @@ export function TerminalPanel({
     }
   };
 
-  // Status indicator
+  // Status indicator dot
   const statusDot = isRunning ? (
-    <span
-      style={{
-        display: 'inline-block',
-        width: '8px',
-        height: '8px',
-        borderRadius: '9999px',
-        backgroundColor: '#a6e3a1',
-        boxShadow: '0 0 6px #a6e3a1',
-        animation: 'pulse 2s ease-in-out infinite',
-        flexShrink: 0,
-      }}
-    />
+    <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
   ) : isCrashed ? (
-    <span
-      style={{
-        display: 'inline-block',
-        width: '8px',
-        height: '8px',
-        borderRadius: '9999px',
-        backgroundColor: '#f38ba8',
-        flexShrink: 0,
-      }}
-    />
+    <span className="w-2 h-2 rounded-full bg-danger shrink-0" />
   ) : (
-    <span
-      style={{
-        display: 'inline-block',
-        width: '8px',
-        height: '8px',
-        borderRadius: '9999px',
-        backgroundColor: '#585b70',
-        flexShrink: 0,
-      }}
-    />
+    <span className="w-2 h-2 rounded-full bg-[#585b70] shrink-0" />
   );
 
   const statusLabel = isRunning ? 'Running' : isCrashed ? 'Crashed' : 'Stopped';
-  const statusColor = isRunning ? '#a6e3a1' : isCrashed ? '#f38ba8' : '#585b70';
-
-  const btnBase: React.CSSProperties = {
-    width: '32px',
-    height: '32px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: '1px solid #2a2a3a',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    color: '#6b6b80',
-    transition: 'color 150ms ease, border-color 150ms ease, background-color 150ms ease',
-    flexShrink: 0,
-  };
+  const statusBadgeClass = isRunning
+    ? 'text-success'
+    : isCrashed
+      ? 'text-danger'
+      : 'text-text-muted';
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#0d0d14',
-        overflow: 'hidden',
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
+    <div className="flex flex-col bg-abyss overflow-hidden flex-1 min-h-0">
       {/* Control bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          backgroundColor: '#12121a',
-          borderBottom: '1px solid #2a2a3a',
-          flexShrink: 0,
-        }}
-      >
+      <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-border-default shrink-0">
         {statusDot}
 
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#e4e4ed',
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span className="text-[13px] font-semibold text-text-primary flex-1 min-w-0 truncate">
           {processName || processId}
         </span>
 
         <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: statusColor,
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            flexShrink: 0,
-          }}
+          className={cn(
+            'text-[11px] font-semibold tracking-[0.05em] uppercase shrink-0',
+            statusBadgeClass
+          )}
         >
           {statusLabel}
         </span>
 
         {/* Separator */}
-        <div style={{ width: '1px', height: '16px', backgroundColor: '#2a2a3a', flexShrink: 0 }} />
+        <div className="w-px h-4 bg-border-default shrink-0" />
 
         {/* Stop button */}
         {isRunning && onStop && (
-          <button
-            type="button"
+          <IconButton
+            aria-label="Stop process"
             title="Stop process"
+            variant="ghost"
+            size="md"
             onClick={onStop}
-            style={btnBase}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.color = '#f9e2af';
-              el.style.borderColor = 'rgba(249,226,175,0.4)';
-              el.style.backgroundColor = 'rgba(249,226,175,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.color = '#6b6b80';
-              el.style.borderColor = '#2a2a3a';
-              el.style.backgroundColor = 'transparent';
-            }}
+            className="border border-border-default hover:text-warning hover:border-[rgba(249,226,175,0.4)] hover:bg-[rgba(249,226,175,0.08)]"
           >
             <Square size={12} />
-          </button>
+          </IconButton>
         )}
 
         {/* Restart button */}
         {onRestart && (
-          <button
-            type="button"
+          <IconButton
+            aria-label="Restart process"
             title="Restart process"
+            variant="ghost"
+            size="md"
             onClick={onRestart}
-            style={btnBase}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.color = '#89b4fa';
-              el.style.borderColor = 'rgba(137,180,250,0.4)';
-              el.style.backgroundColor = 'rgba(137,180,250,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              el.style.color = '#6b6b80';
-              el.style.borderColor = '#2a2a3a';
-              el.style.backgroundColor = 'transparent';
-            }}
+            className="border border-border-default hover:text-[#89b4fa] hover:border-[rgba(137,180,250,0.4)] hover:bg-[rgba(137,180,250,0.08)]"
           >
             <RefreshCw size={12} />
-          </button>
+          </IconButton>
         )}
 
         {/* Kill button */}
-        <button
-          type="button"
+        <IconButton
+          aria-label="Kill process"
           title="Kill process"
+          variant="danger"
+          size="md"
           onClick={handleKill}
-          style={btnBase}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = '#f38ba8';
-            el.style.borderColor = 'rgba(243,139,168,0.4)';
-            el.style.backgroundColor = 'rgba(243,139,168,0.08)';
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = '#6b6b80';
-            el.style.borderColor = '#2a2a3a';
-            el.style.backgroundColor = 'transparent';
-          }}
+          className="border border-border-default"
         >
           <XIcon size={12} />
-        </button>
+        </IconButton>
 
         {/* Clear button */}
-        <button
-          type="button"
+        <IconButton
+          aria-label="Clear output"
           title="Clear output"
+          variant="ghost"
+          size="md"
           onClick={handleClear}
-          style={btnBase}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = '#e4e4ed';
-            el.style.borderColor = '#3a3a4a';
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = '#6b6b80';
-            el.style.borderColor = '#2a2a3a';
-          }}
+          className="border border-border-default"
         >
           <Trash2 size={12} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Output area */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '12px',
-          fontFamily: 'JetBrains Mono, SF Mono, ui-monospace, monospace',
-          fontSize: '13px',
-          lineHeight: 1.4,
-          color: '#cdd6f4',
-          backgroundColor: '#0a0a0f',
-          minHeight: 0,
-        }}
+        className="flex-1 overflow-y-auto p-3 font-mono text-[13px] leading-[1.4] text-[#cdd6f4] bg-void min-h-0"
       >
         {displayLines.length === 0 ? (
-          <span style={{ color: '#585b70' }}>Waiting for output…</span>
+          <span className="text-[#585b70]">Waiting for output…</span>
         ) : (
           displayLines.map((line, i) => (
             <div key={i} style={{ minHeight: '1em' }}>
@@ -315,17 +195,7 @@ export function TerminalPanel({
 
       {/* Auto-scroll paused indicator */}
       {!autoScroll && displayLines.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '4px 12px',
-            backgroundColor: 'rgba(99,102,241,0.15)',
-            borderTop: '1px solid rgba(99,102,241,0.2)',
-            flexShrink: 0,
-          }}
-        >
+        <div className="flex items-center justify-center px-3 py-1 bg-accent/15 border-t border-accent/20 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -333,30 +203,12 @@ export function TerminalPanel({
               const el = scrollRef.current;
               if (el) el.scrollTop = el.scrollHeight;
             }}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 600,
-              color: '#89b4fa',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              padding: '2px 0',
-            }}
+            className="bg-none border-none cursor-pointer text-[11px] font-semibold text-[#89b4fa] tracking-[0.05em] uppercase py-0.5"
           >
             Resume auto-scroll ↓
           </button>
         </div>
       )}
-
-      {/* Pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   );
 }
