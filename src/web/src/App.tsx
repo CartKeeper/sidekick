@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useId } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Lock, Eye, EyeOff, Maximize2, Shield } from 'lucide-react';
+import { Lock, Maximize2 } from 'lucide-react';
 import { useAppStore } from './stores/app';
 import { SetupScreen } from './components/SetupScreen';
 import { UnlockScreen } from './components/UnlockScreen';
@@ -8,6 +8,7 @@ import { MigrationScreen } from './components/MigrationScreen';
 import { Layout } from './components/Layout';
 import { DockLayout } from './components/DockLayout';
 import { api } from './api/client';
+import { Button, Input, cn } from './components/ui';
 
 // TypeScript declarations for the Electron preload bridge
 declare global {
@@ -41,7 +42,6 @@ function DockUnlockLayout() {
   const dockEdge = useAppStore((s) => s.dockEdge);
   const panelOpen = useAppStore((s) => s.panelOpen);
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,30 +100,10 @@ function DockUnlockLayout() {
     }
   }
 
-  const stripBtnStyle: React.CSSProperties = {
-    width: '56px',
-    height: '56px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#6b6b80',
-    transition: 'background-color 150ms ease, color 150ms ease',
-    flexShrink: 0,
-  };
-
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: dockEdge === 'left' ? 'row-reverse' : 'row',
-        height: '100vh',
-        backgroundColor: '#0a0a0f',
-        overflow: 'hidden',
-      }}
+      className="flex h-screen bg-void overflow-hidden"
+      style={{ flexDirection: dockEdge === 'left' ? 'row-reverse' : 'row' }}
     >
       {/* Unlock panel */}
       <AnimatePresence>
@@ -133,87 +113,34 @@ function DockUnlockLayout() {
             animate={{ width: 600, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            style={{
-              flexShrink: 0,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: '#0a0a0f',
-              borderRight: '1px solid #2a2a3a',
-              height: '100%',
-            }}
+            className={cn(
+              'shrink-0 overflow-hidden flex flex-col bg-void h-full',
+              dockEdge === 'left' ? 'border-l border-border-default' : 'border-r border-border-default',
+            )}
           >
-            <div style={{ width: '600px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="w-150 h-full flex flex-col">
               {/* Drag region */}
-              <div className="drag-region" style={{ height: '40px', width: '100%', flexShrink: 0 }} />
+              <div className="drag-region h-10 w-full shrink-0" />
 
               {/* Centered unlock form */}
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 24px 40px',
-                }}
-              >
+              <div className="flex-1 flex items-center justify-center px-6 pb-10">
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
-                  style={{ width: '100%', maxWidth: '340px' }}
+                  className="w-full max-w-85"
                 >
-                  <div
-                    style={{
-                      backgroundColor: '#1a1a25',
-                      border: '1px solid #2a2a3a',
-                      borderRadius: '12px',
-                      padding: '16px',
-                    }}
-                  >
+                  <div className="bg-surface border border-border-default rounded-xl p-4">
                     {/* Lock icon + title */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        marginBottom: '24px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(99,102,241,0.15)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Lock size={20} color="#6366f1" />
+                    <div className="flex flex-col items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-lg bg-accent-muted flex items-center justify-center">
+                        <Lock size={20} className="text-accent" />
                       </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <h1
-                          style={{
-                            fontSize: '20px',
-                            fontWeight: 700,
-                            color: '#e4e4ed',
-                            lineHeight: 1.2,
-                            margin: 0,
-                          }}
-                        >
+                      <div className="text-center">
+                        <h1 className="text-[20px] font-bold text-text-primary leading-tight m-0">
                           Sidekick
                         </h1>
-                        <p
-                          style={{
-                            fontSize: '13px',
-                            color: '#6b6b80',
-                            marginTop: '4px',
-                            margin: '4px 0 0',
-                          }}
-                        >
+                        <p className="text-[13px] text-text-muted mt-1">
                           Vault is locked
                         </p>
                       </div>
@@ -221,111 +148,40 @@ function DockUnlockLayout() {
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} noValidate>
-                      <div style={{ marginBottom: '16px' }}>
+                      <div className="mb-4">
                         <label
                           htmlFor={passwordId}
-                          style={{
-                            display: 'block',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: '#a1a1b5',
-                            marginBottom: '6px',
-                          }}
+                          className="block text-[12px] font-semibold text-text-secondary mb-1.5"
                         >
                           Master Password
                         </label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            ref={inputRef}
-                            id={passwordId}
-                            type={showPassword ? 'text' : 'password'}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter master password"
-                            autoComplete="current-password"
-                            style={{
-                              width: '100%',
-                              height: '40px',
-                              backgroundColor: '#0d0d14',
-                              border: `1px solid ${error ? '#ef4444' : '#2a2a3a'}`,
-                              borderRadius: '8px',
-                              padding: '0 40px 0 12px',
-                              fontSize: '14px',
-                              color: '#e4e4ed',
-                              outline: 'none',
-                              transition: 'border-color 150ms ease',
-                              boxSizing: 'border-box',
-                            }}
-                            onFocus={(e) => {
-                              if (!error) e.currentTarget.style.borderColor = '#6366f1';
-                            }}
-                            onBlur={(e) => {
-                              if (!error) e.currentTarget.style.borderColor = '#2a2a3a';
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((v) => !v)}
-                            tabIndex={-1}
-                            aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            style={{
-                              position: 'absolute',
-                              right: '12px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: '#6b6b80',
-                              padding: 0,
-                              display: 'flex',
-                            }}
-                          >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
+                        <Input
+                          ref={inputRef}
+                          id={passwordId}
+                          type="password"
+                          revealable
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter master password"
+                          autoComplete="current-password"
+                          error={!!error}
+                        />
                         {error && (
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              color: '#ef4444',
-                              marginTop: '4px',
-                              margin: '4px 0 0',
-                            }}
-                          >
+                          <p className="text-[12px] font-semibold text-danger mt-1">
                             {error}
                           </p>
                         )}
                       </div>
 
-                      <button
+                      <Button
                         type="submit"
-                        disabled={loading}
-                        style={{
-                          width: '100%',
-                          height: '40px',
-                          borderRadius: '8px',
-                          padding: '0 16px',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: '#ffffff',
-                          backgroundColor: '#6366f1',
-                          border: 'none',
-                          cursor: loading ? 'not-allowed' : 'pointer',
-                          opacity: loading ? 0.5 : 1,
-                          transition: 'background-color 150ms ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!loading)
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#5558e6';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6366f1';
-                        }}
+                        variant="primary"
+                        size="md"
+                        loading={loading}
+                        className="w-full"
                       >
-                        {loading ? 'Unlocking\u2026' : 'Unlock'}
-                      </button>
+                        {loading ? 'Unlocking…' : 'Unlock'}
+                      </Button>
                     </form>
                   </div>
                 </motion.div>
@@ -337,68 +193,44 @@ function DockUnlockLayout() {
 
       {/* Dock strip — sits on the configured screen edge */}
       <div
-        className="no-drag"
-        style={{
-          width: '72px',
-          flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          backgroundColor: '#12121a',
-          ...(dockEdge === 'left'
-            ? { borderRight: '1px solid #2a2a3a' }
-            : { borderLeft: '1px solid #2a2a3a' }),
-          height: '100%',
-          padding: '14px 0',
-          gap: '6px',
-          overflow: 'hidden',
-        } as React.CSSProperties}
+        className={cn(
+          'no-drag w-18 shrink-0 flex flex-col items-center bg-abyss h-full py-3.5 gap-1.5 overflow-hidden',
+          dockEdge === 'left' ? 'border-r border-border-default' : 'border-l border-border-default',
+        )}
       >
         {/* Lock icon — tap to toggle panel */}
         <button
           type="button"
-          title={panelOpen ? 'Close unlock panel' : 'Unlock vault'}
+          aria-label={panelOpen ? 'Close unlock panel' : 'Unlock vault'}
           onClick={handleTogglePanel}
-          style={{
-            ...stripBtnStyle,
-            backgroundColor: panelOpen ? 'rgba(99,102,241,0.15)' : 'transparent',
-            ...(dockEdge === 'left'
-              ? { borderRight: panelOpen ? '3px solid #6366f1' : '3px solid transparent' }
-              : { borderLeft: panelOpen ? '3px solid #6366f1' : '3px solid transparent' }),
-            color: panelOpen ? '#e4e4ed' : '#6b6b80',
-          }}
-          onMouseEnter={(e) => {
-            if (!panelOpen) {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
-              (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!panelOpen) {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-              (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
-            }
-          }}
+          className={cn(
+            'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
+            'border-transparent transition-colors duration-150',
+            panelOpen
+              ? 'bg-accent-muted text-text-primary'
+              : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary',
+          )}
+          style={
+            panelOpen
+              ? dockEdge === 'left'
+                ? { borderRight: '3px solid var(--color-accent)' }
+                : { borderLeft: '3px solid var(--color-accent)' }
+              : dockEdge === 'left'
+                ? { borderRight: '3px solid transparent' }
+                : { borderLeft: '3px solid transparent' }
+          }
         >
           <Lock size={24} />
         </button>
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         {/* Undock button */}
         <button
           type="button"
-          title="Detach to window"
+          aria-label="Detach to window"
           onClick={handleUndock}
-          style={stripBtnStyle}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#222230';
-            (e.currentTarget as HTMLButtonElement).style.color = '#e4e4ed';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = '#6b6b80';
-          }}
+          className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors duration-150"
         >
           <Maximize2 size={20} />
         </button>
