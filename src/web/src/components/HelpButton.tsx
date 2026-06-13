@@ -89,7 +89,7 @@ export function HelpButton() {
           </div>
         )}
 
-        {/* Bare HelpCircle button — no filled bubble, just icon in thin circle outline */}
+        {/* Bare HelpCircle icon — no filled bubble/pill, no wrapper ring (per design mandate) */}
         <button
           ref={btnRef}
           type="button"
@@ -101,15 +101,13 @@ export function HelpButton() {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center cursor-pointer',
-            'transition-[background-color,color,border-color] duration-150',
+            'w-10 h-10 rounded-full flex items-center justify-center cursor-pointer bg-transparent border-none',
+            'transition-colors duration-150',
             'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
-            open
-              ? 'bg-accent/15 border border-accent/40 text-accent'
-              : 'bg-transparent border border-border-default text-text-muted hover:text-text-primary',
+            open ? 'text-accent' : 'text-text-muted hover:text-text-primary',
           )}
         >
-          <HelpCircle size={18} />
+          <HelpCircle size={18} strokeWidth={1.5} />
         </button>
       </div>
 
