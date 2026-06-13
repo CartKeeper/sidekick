@@ -20,35 +20,14 @@ function MainPanelContent() {
   }, [fetchProjects, fetchStats]);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex h-full overflow-hidden">
       {/* Compact sidebar for dock panel — narrower */}
-      <div
-        style={{
-          width: '200px',
-          flexShrink: 0,
-          overflow: 'hidden',
-          height: '100%',
-        }}
-      >
+      <div className="shrink-0 overflow-hidden h-full" style={{ width: '200px' }}>
         <Sidebar />
       </div>
 
-      {/* Content area */}
-      <main
-        className="no-drag"
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '16px',
-          minWidth: 0,
-        }}
-      >
+      {/* Content area — min-w-0 prevents flex child from overflowing */}
+      <main className="no-drag flex-1 overflow-auto p-4 min-w-0">
         {currentProjectId ? <ProjectDetail /> : <DockWelcome />}
       </main>
     </div>
@@ -59,42 +38,15 @@ function DockWelcome() {
   const { stats } = useAppStore();
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        gap: '16px',
-        color: '#6b6b80',
-        textAlign: 'center',
-        padding: '16px',
-      }}
-    >
-      <span
-        style={{
-          fontSize: '16px',
-          fontWeight: 600,
-          color: '#e4e4ed',
-        }}
-      >
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted text-center p-4">
+      <span className="text-base font-semibold text-text-primary">
         Select a project
       </span>
-      <span style={{ fontSize: '14px', color: '#6b6b80', maxWidth: '220px' }}>
+      <span className="text-sm text-text-muted max-w-55">
         Choose a project from the sidebar.
       </span>
       {stats && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '16px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#6b6b80',
-            marginTop: '8px',
-          }}
-        >
+        <div className="flex gap-4 text-xs font-semibold text-text-muted mt-2">
           <span>{stats.projectCount} projects</span>
           <span>{stats.secretCount} secrets</span>
         </div>
@@ -109,23 +61,14 @@ function ProcessPanelContent({ processId }: { processId: string }) {
 
   if (!proc) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          color: '#6b6b80',
-          fontSize: '14px',
-        }}
-      >
+      <div className="flex items-center justify-center h-full text-text-muted text-sm">
         Process not found.
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="p-4 h-full flex flex-col">
       <TerminalPanel
         processId={proc.id}
         processName={proc.name}
@@ -147,17 +90,9 @@ export function DockPanel({ activeTab }: DockPanelProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      style={{
-        width: '600px',
-        flexShrink: 0,
-        height: '100%',
-        backgroundColor: '#0a0a0f',
-        borderRight: '1px solid #2a2a3a',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-      }}
+      className="shrink-0 h-full bg-void border-r border-border-default overflow-hidden flex flex-col relative"
+      // COMPUTED: fixed 600px panel width stays inline — pixel value, not a token
+      style={{ width: '600px' }}
     >
       {activeTab === 'main' ? (
         <MainPanelContent />
