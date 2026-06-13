@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Loader2, Lock } from 'lucide-react';
+import { Monitor, Lock } from 'lucide-react';
+import { Select, Spinner, cn } from './ui';
 
 const AUTO_LOCK_OPTIONS: { label: string; value: number | null }[] = [
   { label: '15 minutes', value: 15 * 60 * 1000 },
@@ -68,78 +69,39 @@ export function PreferencesPanel() {
   };
 
   return (
-    <div
-      className="no-drag"
-      style={{
-        height: '100%',
-        overflow: 'auto',
-        padding: '20px 22px',
-        color: '#e4e4ed',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>Preferences</h2>
+    <div className="no-drag h-full overflow-auto px-5.5 py-5 text-text-primary">
+      <div className="flex items-center justify-between mb-4.5">
+        <h2 className="m-0 text-base font-bold tracking-tight">Preferences</h2>
         <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: '#22c55e',
-            opacity: savedFlash ? 1 : 0,
-            transition: 'opacity 200ms ease',
-          }}
+          className="text-[11px] font-semibold text-success transition-opacity duration-200"
+          style={{ opacity: savedFlash ? 1 : 0 }}
         >
           Saved
         </span>
       </div>
 
-      <section style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <Monitor size={14} color="#a1a1b5" />
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#a1a1b5',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
+      <section className="mb-5.5">
+        <div className="flex items-center gap-2 mb-2.5">
+          <Monitor size={14} className="text-text-secondary" />
+          <span className="text-[12px] font-semibold text-text-secondary tracking-widest uppercase">
             Dock Position
           </span>
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b6b80', fontSize: '13px' }}>
-            <Loader2 size={14} className="animate-spin" />
+          <div className="flex items-center gap-2 text-text-muted text-[13px]">
+            <Spinner size={14} />
             Loading displays…
           </div>
         ) : (
           <>
-            <label
-              style={{
-                fontSize: '12px',
-                color: '#a1a1b5',
-                display: 'block',
-                marginBottom: '6px',
-              }}
-            >
+            <label className="text-[12px] text-text-secondary block mb-1.5">
               Display
             </label>
-            <select
+            <Select
               value={displayId == null ? 'auto' : String(displayId)}
               onChange={(e) => onDisplayChange(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 10px',
-                fontSize: '13px',
-                color: '#e4e4ed',
-                backgroundColor: '#12121a',
-                border: '1px solid #2a2a3a',
-                borderRadius: '8px',
-                outline: 'none',
-                marginBottom: '14px',
-              }}
+              className="mb-3.5"
             >
               <option value="auto">Auto (whichever display the window is on)</option>
               {displays.map((d) => (
@@ -147,19 +109,12 @@ export function PreferencesPanel() {
                   {d.label}
                 </option>
               ))}
-            </select>
+            </Select>
 
-            <label
-              style={{
-                fontSize: '12px',
-                color: '#a1a1b5',
-                display: 'block',
-                marginBottom: '6px',
-              }}
-            >
+            <label className="text-[12px] text-text-secondary block mb-1.5">
               Edge
             </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="flex gap-2">
               {(['left', 'right'] as const).map((option) => {
                 const isActive = edge === option;
                 return (
@@ -167,26 +122,20 @@ export function PreferencesPanel() {
                     key={option}
                     type="button"
                     onClick={() => onEdgeChange(option)}
-                    style={{
-                      flex: 1,
-                      height: '38px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: isActive ? '#e4e4ed' : '#6b6b80',
-                      backgroundColor: isActive ? 'rgba(99,102,241,0.15)' : '#12121a',
-                      border: `1px solid ${isActive ? '#6366f1' : '#2a2a3a'}`,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                      transition: 'background-color 150ms ease, color 150ms ease, border-color 150ms ease',
-                    }}
+                    className={cn(
+                      'flex-1 h-9.5 text-[13px] font-semibold rounded-md cursor-pointer capitalize',
+                      'border transition-[background-color,color,border-color] duration-150',
+                      isActive
+                        ? 'text-text-primary bg-accent/15 border-accent'
+                        : 'text-text-muted bg-void border-border-default hover:bg-surface-hover hover:text-text-primary',
+                    )}
                   >
                     {option}
                   </button>
                 );
               })}
             </div>
-            <p style={{ fontSize: '12px', color: '#6b6b80', marginTop: '10px', lineHeight: 1.5 }}>
+            <p className="text-[12px] text-text-muted mt-2.5 leading-normal">
               Sidekick docks to the chosen edge of the selected display. "Auto" uses whichever display the window is
               currently on when you switch to dock mode.
             </p>
@@ -195,46 +144,27 @@ export function PreferencesPanel() {
       </section>
 
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <Lock size={14} color="#a1a1b5" />
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#a1a1b5',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
+        <div className="flex items-center gap-2 mb-2.5">
+          <Lock size={14} className="text-text-secondary" />
+          <span className="text-[12px] font-semibold text-text-secondary tracking-widest uppercase">
             Auto-Lock
           </span>
         </div>
 
-        <label style={{ fontSize: '12px', color: '#a1a1b5', display: 'block', marginBottom: '6px' }}>
+        <label className="text-[12px] text-text-secondary block mb-1.5">
           Lock vault after idle
         </label>
-        <select
+        <Select
           value={autoLockMs == null ? 'null' : String(autoLockMs)}
           onChange={(e) => onAutoLockChange(e.target.value)}
-          style={{
-            width: '100%',
-            height: '38px',
-            padding: '0 10px',
-            fontSize: '13px',
-            color: '#e4e4ed',
-            backgroundColor: '#12121a',
-            border: '1px solid #2a2a3a',
-            borderRadius: '8px',
-            outline: 'none',
-          }}
         >
           {AUTO_LOCK_OPTIONS.map((opt) => (
             <option key={String(opt.value)} value={opt.value == null ? 'null' : String(opt.value)}>
               {opt.label}
             </option>
           ))}
-        </select>
-        <p style={{ fontSize: '12px', color: '#6b6b80', marginTop: '10px', lineHeight: 1.5 }}>
+        </Select>
+        <p className="text-[12px] text-text-muted mt-2.5 leading-normal">
           Idle is measured by mouse and keyboard activity inside Sidekick. "Never" disables auto-lock until you quit
           or use Lock Vault from the tray.
         </p>
