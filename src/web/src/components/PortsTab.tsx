@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { RefreshCw, X as XIcon, Search, Zap, Network } from 'lucide-react';
 import { api, type PortListener } from '../api/client';
-import { Button, IconButton, Input, EmptyState, Spinner, cn } from './ui';
+import { Button, IconButton, Input, EmptyState, Spinner, ConfirmDialog, cn } from './ui';
 
 export function PortsTab() {
   const [listeners, setListeners] = useState<PortListener[]>([]);
@@ -9,6 +9,7 @@ export function PortsTab() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [busyPid, setBusyPid] = useState<number | null>(null);
+  const [pendingKill, setPendingKill] = useState<{ pid: number; force: boolean } | null>(null);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -28,11 +29,14 @@ export function PortsTab() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const handleKill = async (pid: number, force = false) => {
-    const ok = window.confirm(
-      `${force ? 'Force kill' : 'Kill'} PID ${pid}?\n\nThis will send ${force ? 'SIGKILL' : 'SIGTERM'} to the process.`
-    );
-    if (!ok) return;
+  const handleKill = (pid: number, force = false) => {
+    setPendingKill({ pid, force });
+  };
+
+  const confirmKill = async () => {
+    if (!pendingKill) return;
+    const { pid, force } = pendingKill;
+    setPendingKill(null);
     setBusyPid(pid);
     try {
       await api.ports.kill(pid, force);
@@ -58,6 +62,20 @@ export function PortsTab() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      <ConfirmDialog
+        open={pendingKill !== null}
+        title={pendingKill?.force ? 'Force Kill Process' : 'Kill Process'}
+        message={
+          pendingKill
+            ? `Send ${pendingKill.force ? 'SIGKILL' : 'SIGTERM'} to PID ${pendingKill.pid}? This will terminate the process.`
+            : ''
+        }
+        confirmLabel={pendingKill?.force ? 'Force Kill' : 'Kill Process'}
+        danger
+        loading={busyPid !== null}
+        onConfirm={confirmKill}
+        onCancel={() => setPendingKill(null)}
+      />
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <h1 className="m-0 text-[20px] font-bold text-text-primary tracking-tight">Ports</h1>

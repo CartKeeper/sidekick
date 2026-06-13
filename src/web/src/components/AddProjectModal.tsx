@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FolderOpen, Tag } from 'lucide-react';
 import { api } from '../api/client';
 import { useAppStore } from '../stores/app';
-import { Modal, Button, Input } from './ui';
+import { Modal, Button, Input, cn } from './ui';
 
 const PRESET_COLORS = [
   '#6366f1',
@@ -108,11 +108,10 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
                     key={ic}
                     type="button"
                     onClick={() => setIcon(ic)}
-                    className="w-8 h-8 text-base rounded-md cursor-pointer transition-colors duration-150"
-                    style={{
-                      border: icon === ic ? '2px solid #6366f1' : '2px solid transparent',
-                      backgroundColor: icon === ic ? 'rgba(99,102,241,0.15)' : 'rgb(var(--color-border-default) / 1)',
-                    }}
+                    className={cn(
+                      'w-8 h-8 text-base rounded-md cursor-pointer transition-colors duration-150 border-2',
+                      icon === ic ? 'border-accent bg-accent/15' : 'border-transparent bg-border-default',
+                    )}
                   >
                     {ic}
                   </button>
@@ -218,11 +217,11 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
                   type="button"
                   onClick={() => setColor(c)}
                   title={c}
-                  className="w-7 h-7 rounded-full cursor-pointer shrink-0 transition-[border-color] duration-150"
-                  style={{
-                    backgroundColor: c,
-                    border: color === c ? '3px solid #e4e4ed' : '3px solid transparent',
-                  }}
+                  className={cn(
+                    'w-7 h-7 rounded-full cursor-pointer shrink-0 transition-[border-color] duration-150 border-[3px]',
+                    color === c ? 'border-text-primary' : 'border-transparent',
+                  )}
+                  style={{ backgroundColor: c }}
                 />
               ))}
             </div>
