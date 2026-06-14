@@ -13,7 +13,8 @@ export function Sidebar() {
     <>
       <aside className="w-82 shrink-0 flex flex-col bg-abyss border-r border-border-default h-full overflow-hidden">
         {/* App title — sits below drag region, clear of traffic lights */}
-        <div className="no-drag px-4 py-2.5 border-b border-border-default shrink-0">
+        <div className="no-drag flex items-center gap-2 px-4 py-2.5 border-b border-border-default shrink-0">
+          <img src="/logo.png" alt="" className="w-7 h-7 rounded-md object-contain shrink-0" />
           <span className="text-[16px] font-bold text-text-primary tracking-[-0.01em]">
             Sidekick
           </span>

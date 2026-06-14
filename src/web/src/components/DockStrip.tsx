@@ -1,4 +1,4 @@
-import { Maximize2, Settings, Shield } from 'lucide-react';
+import { Maximize2, Settings } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ProjectIcon } from './ProjectIcon';
 import { IconButton, cn } from './ui';
@@ -9,6 +9,15 @@ interface DockStripProps {
   onUndock: () => void;
 }
 
+// Convert a #rrggbb hex to rgba() so we can apply the project's color at a low
+// opacity for the running glow. Falls back to the raw value if it isn't 6-hex.
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex ?? '').trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 function StripTab({
   id,
   active,
@@ -16,6 +25,8 @@ function StripTab({
   children,
   title,
   edge,
+  glowColor,
+  bare = false,
 }: {
   id: string;
   active: boolean;
@@ -23,13 +34,24 @@ function StripTab({
   children: React.ReactNode;
   title: string;
   edge: 'left' | 'right';
+  glowColor?: string;
+  bare?: boolean;
 }) {
   // COMPUTED: active indicator border lives on the outer (screen-facing) edge.
   // dock right → borderLeft; dock left → borderRight. Driven by runtime value.
-  const indicatorStyle: React.CSSProperties =
-    edge === 'left'
+  // `bare` tabs (the logo) carry no border or background — the icon stands alone.
+  const indicatorStyle: React.CSSProperties = bare
+    ? {}
+    : edge === 'left'
       ? { borderRight: active ? '3px solid var(--color-accent)' : '3px solid transparent' }
       : { borderLeft: active ? '3px solid var(--color-accent)' : '3px solid transparent' };
+
+  // A running project glows in its OWN color (the one chosen in Settings) — a
+  // subtle backglow plus a faint tint, just enough to read "on" at a glance.
+  if (glowColor && !bare) {
+    indicatorStyle.boxShadow = `0 0 10px 1px ${hexToRgba(glowColor, 0.5)}`;
+    if (!active) indicatorStyle.backgroundColor = hexToRgba(glowColor, 0.12);
+  }
 
   return (
     <button
@@ -42,11 +64,15 @@ function StripTab({
       className={cn(
         'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
         'border-y-0 border-[unset] cursor-pointer relative',
-        'transition-[background-color,color,border-color] duration-150',
+        'transition-[background-color,color,border-color,box-shadow] duration-150',
         'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
-        active
-          ? 'bg-accent/15 text-text-primary'
-          : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary',
+        bare
+          ? 'bg-transparent'
+          : active
+            ? 'bg-accent/15 text-text-primary'
+            : glowColor
+              ? 'text-text-primary'
+              : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-primary',
       )}
     >
       {children}
@@ -63,16 +89,20 @@ export function DockStrip({ activeTab, onTabClick, onUndock }: DockStripProps) {
     (p) => p.status !== 'stopped' && p.status !== 'killed'
   );
 
-  // Projects that have launch commands and aren't hidden from the toolbar
-  const launchableProjects = projects.filter(
-    (p) => p.start_commands && p.start_commands.length > 0 && p.include_in_toolbar !== false
+  // Projects pinned to the toolbar via the "Include in toolbar" checkbox. Shown
+  // whether or not they have launch commands — a project with no commands just
+  // opens when clicked instead of launching.
+  const toolbarProjects = projects.filter(
+    (p) => !p.archived && p.include_in_toolbar !== false
   );
 
   const isProjectRunning = (projectId: string) =>
     activeProcesses.some((p) => p.projectId === projectId);
 
   const handleProjectClick = async (projectId: string) => {
-    if (!isProjectRunning(projectId)) {
+    const proj = toolbarProjects.find((p) => p.id === projectId);
+    const hasCommands = !!(proj?.start_commands && proj.start_commands.length > 0);
+    if (hasCommands && !isProjectRunning(projectId)) {
       await launchProject(projectId);
     }
     onTabClick(`project:${projectId}`);
@@ -81,31 +111,32 @@ export function DockStrip({ activeTab, onTabClick, onUndock }: DockStripProps) {
   return (
     <div
       className={cn(
-        'no-drag flex-col items-center bg-abyss h-full py-3.5 gap-1.5 overflow-hidden',
+        'no-drag flex-col items-center bg-abyss h-full py-3.5 gap-2.5 overflow-hidden',
         // COMPUTED: border side depends on dock edge runtime value
         edge === 'left' ? 'border-r border-border-default' : 'border-l border-border-default',
       )}
       // COMPUTED: fixed 72px width must stay inline — not a token
       style={{ width: '72px', flexShrink: 0, display: 'flex' }}
     >
-      {/* Main app tab — Sidekick shield */}
+      {/* Main app tab — Sidekick logo (bare: no tab background behind it) */}
       <StripTab
         id="main"
         edge={edge}
         active={activeTab === 'main'}
         onClick={() => onTabClick('main')}
         title="Sidekick"
+        bare
       >
-        <Shield size={24} fill="var(--color-accent)" color="var(--color-accent)" />
+        <img src="/logo.png" alt="Sidekick" className="w-12 h-12 object-contain" />
       </StripTab>
 
       {/* Separator before launchable projects */}
-      {launchableProjects.length > 0 && (
+      {toolbarProjects.length > 0 && (
         <div className="w-10 h-px bg-border-default my-1 shrink-0" />
       )}
 
       {/* Launchable project icons */}
-      {launchableProjects.map((proj) => {
+      {toolbarProjects.map((proj) => {
         const running = isProjectRunning(proj.id);
         const tabId = `project:${proj.id}`;
         const isActive = activeTab === tabId;
@@ -116,6 +147,7 @@ export function DockStrip({ activeTab, onTabClick, onUndock }: DockStripProps) {
             id={tabId}
             edge={edge}
             active={isActive}
+            glowColor={running ? proj.color : undefined}
             onClick={() => handleProjectClick(proj.id)}
             title={proj.name}
           >

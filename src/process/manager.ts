@@ -106,6 +106,16 @@ export class ProcessManager extends EventEmitter {
     secrets?: Record<string, string>;
   }): ProcessInfo[] {
     const { projectId, projectName, commands, cwd, secrets } = opts;
+
+    // Clear out finished (crashed/stopped) processes for this project so old
+    // dead terminals don't pile up every time we launch.
+    for (const [id, proc] of this.processes) {
+      if (proc.projectId === projectId && proc.status !== 'running') {
+        this.processes.delete(id);
+        this.logs.delete(id);
+      }
+    }
+
     const env = buildProcessEnv(secrets);
     const launched: ProcessInfo[] = [];
 
@@ -258,6 +268,18 @@ export class ProcessManager extends EventEmitter {
     if (!proc?.process || proc.status !== 'running') return;
     proc.status = 'stopped';
     this.killTree(proc.process.pid!, true);
+  }
+
+  /**
+   * Remove a finished (crashed/stopped) process and its logs from the list.
+   * Running processes are left alone — stop or kill them first.
+   */
+  remove(processId: string): boolean {
+    const proc = this.processes.get(processId);
+    if (!proc || proc.status === 'running') return false;
+    this.processes.delete(processId);
+    this.logs.delete(processId);
+    return true;
   }
 
   /**

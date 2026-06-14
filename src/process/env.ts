@@ -144,6 +144,15 @@ export function buildProcessEnv(secrets: Record<string, string> = {}): NodeJS.Pr
   delete env.SIDEKICK_PORT;
   delete env.ELECTRON_RUN_AS_NODE;
 
+  // Strip npm's per-run config vars (npm_config_*). They leak in when Sidekick's
+  // own server is launched via `npm run`, and `npm_config_prefix` in particular
+  // makes `nvm use` abort inside a launched project ("not compatible with the
+  // npm_config_prefix environment variable"). The project's own npm run will set
+  // these fresh anyway.
+  for (const key of Object.keys(env)) {
+    if (/^npm_config_/i.test(key)) delete env[key];
+  }
+
   // Project secrets win over inherited env (user can still set PORT explicitly).
   Object.assign(env, secrets);
 

@@ -111,6 +111,11 @@ export function getDb(dbPath?: string): Database.Database {
   if (!colNames.has('include_in_toolbar')) {
     db.exec("ALTER TABLE projects ADD COLUMN include_in_toolbar INTEGER DEFAULT 1");
   }
+  // Which env-var prefix conventions (vite/next/plain) Supabase sync should
+  // emit for this project's PUBLIC creds. JSON array; NULL = legacy default.
+  if (!colNames.has('supabase_env_styles')) {
+    db.exec("ALTER TABLE projects ADD COLUMN supabase_env_styles TEXT DEFAULT NULL");
+  }
 
   // Secrets source column
   const secretCols = db.prepare("PRAGMA table_info(secrets)").all() as { name: string }[];

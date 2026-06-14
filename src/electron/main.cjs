@@ -24,7 +24,7 @@ const { spawn } = require('node:child_process');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const SERVER_PORT = 9999;
-const VITE_PORT = 5173;
+const VITE_PORT = 5199;
 
 const STRIP_WIDTH = 72;
 const PANEL_WIDTH = 600;
@@ -132,7 +132,20 @@ function getDockBounds() {
 
 // ─── Server Management ───────────────────────────────────────────────────────
 
-function startServer() {
+async function startServer() {
+  // Reuse an already-running server (e.g. from `npm run dev`) if one is healthy
+  // on our port. This avoids a port clash AND lets the Electron app run on top
+  // of the dev stack without rebuilding better-sqlite3 for Electron's ABI.
+  try {
+    const res = await fetch(`http://localhost:${SERVER_PORT}/api/auth/status`);
+    if (res.ok) {
+      console.log(`[server] reusing existing server on ${SERVER_PORT}`);
+      return;
+    }
+  } catch {
+    // Nothing healthy on the port — fall through and spawn our own.
+  }
+
   const appRoot = getAppRoot();
   const tsxPath = path.join(appRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
   const serverPath = path.join(appRoot, 'src', 'server', 'index.ts');
@@ -234,12 +247,18 @@ function createWindow() {
     try {
       const cursor = screen.getCursorScreenPoint();
       const b = mainWindow.getBounds();
-      const inside =
-        cursor.x >= b.x &&
-        cursor.x < b.x + b.width &&
+      const prefs = readPrefs();
+      const edge = prefs.dockEdge === 'left' ? 'left' : 'right';
+      // Only the always-visible strip (on the screen-facing edge) counts as
+      // "still on Sidekick". Hovering it keeps the panel open — e.g. while an
+      // app you just launched steals focus. Clicking anywhere else collapses it.
+      const stripX = edge === 'left' ? b.x : b.x + b.width - STRIP_WIDTH;
+      const overStrip =
+        cursor.x >= stripX &&
+        cursor.x < stripX + STRIP_WIDTH &&
         cursor.y >= b.y &&
         cursor.y < b.y + b.height;
-      if (inside) return; // user is still on Sidekick; keep panel open
+      if (overStrip) return; // hovering the strip — keep panel open
     } catch {
       // fall through to collapse on any cursor lookup failure
     }
@@ -504,6 +523,9 @@ function setupIPC() {
 
 // ─── Single Instance Lock ────────────────────────────────────────────────────
 
+// Show "Sidekick" (not "Electron") in the macOS app menu / About panel.
+app.setName('Sidekick');
+
 // In dev mode, skip the lock so dev can run alongside the installed app
 const gotTheLock = isDev ? true : app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -519,6 +541,17 @@ if (!gotTheLock) {
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  // Replace the default Electron dock icon with the Sidekick logo. Packaged
+  // builds get their icon from the .icns bundle; this covers the dev run.
+  if (process.platform === 'darwin' && app.dock) {
+    const dockIcon = path.join(__dirname, '..', '..', 'assets', 'icon_1024.png');
+    try {
+      if (fs.existsSync(dockIcon)) app.dock.setIcon(dockIcon);
+    } catch (e) {
+      console.error('Failed to set dock icon:', e);
+    }
+  }
+
   setupIPC();
   loadAutoLockFromPrefs();
   await startServer();

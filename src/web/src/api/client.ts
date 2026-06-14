@@ -199,6 +199,8 @@ export const api = {
       post<{ success: boolean; processes: any[] }>(`/process/restart/${projectId}`, { environment }),
     kill: (processId: string) =>
       post<{ success: boolean }>(`/process/kill/${processId}`),
+    remove: (processId: string) =>
+      post<{ success: boolean }>(`/process/remove/${processId}`),
     status: () => get<any[]>('/process/status'),
     projectStatus: (projectId: string) =>
       get<{ running: boolean; processes: any[] }>(`/process/status/${projectId}`),
@@ -214,10 +216,14 @@ export const api = {
       del<{ success: boolean; signal: string }>(`/ports/${pid}${force ? '?force=true' : ''}`),
   },
   supabase: {
+    listOrganizations: (accessToken: string) =>
+      post<any[]>('/supabase/organizations', { accessToken }),
     listProjects: (accessToken: string) =>
       post<any[]>('/supabase/projects', { accessToken }),
-    connect: (projectId: string, accessToken: string, supabaseProjectRef: string) =>
-      post<{ success: boolean; supabaseProject: any; sync: SupabaseSyncResult }>('/supabase/connect', { projectId, accessToken, supabaseProjectRef }),
+    detectEnvStyles: (projectId: string) =>
+      get<{ styles: string[] }>(`/supabase/detect/${projectId}`),
+    connect: (projectId: string, accessToken: string, supabaseProjectRef: string, envStyles?: string[]) =>
+      post<{ success: boolean; supabaseProject: any; sync: SupabaseSyncResult }>('/supabase/connect', { projectId, accessToken, supabaseProjectRef, envStyles }),
     disconnect: (projectId: string) =>
       post<{ success: boolean }>(`/supabase/disconnect/${projectId}`),
     sync: (projectId: string) =>

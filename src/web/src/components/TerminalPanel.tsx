@@ -40,7 +40,7 @@ export function TerminalPanel({
   onRestart,
   onKill,
 }: TerminalPanelProps) {
-  const { processOutput, runningProcesses, killProcess } = useAppStore();
+  const { processOutput, runningProcesses, killProcess, dismissProcess } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [localOutput, setLocalOutput] = useState<string[]>([]);
@@ -72,12 +72,24 @@ export function TerminalPanel({
     setAutoScroll(atBottom);
   }, []);
 
+  const isDead = !!process && !isRunning;
+
   const handleClear = () => {
-    // We capture a local cleared state — store keeps its data
+    // For a finished (crashed/stopped) process, the trash removes the dead
+    // terminal entirely. For a running one, it just clears the output view.
+    if (isDead) {
+      dismissProcess(processId);
+      return;
+    }
     setLocalOutput(['']);
   };
 
   const handleKill = () => {
+    // Nothing to kill on a finished process — remove the dead terminal instead.
+    if (isDead) {
+      dismissProcess(processId);
+      return;
+    }
     if (onKill) {
       onKill();
     } else {
@@ -151,10 +163,10 @@ export function TerminalPanel({
           </IconButton>
         )}
 
-        {/* Kill button */}
+        {/* Kill (running) / Remove (dead) button */}
         <IconButton
-          aria-label="Kill process"
-          title="Kill process"
+          aria-label={isDead ? 'Remove terminal' : 'Kill process'}
+          title={isDead ? 'Remove terminal' : 'Kill process'}
           variant="danger"
           size="md"
           onClick={handleKill}
@@ -163,10 +175,10 @@ export function TerminalPanel({
           <XIcon size={12} />
         </IconButton>
 
-        {/* Clear button */}
+        {/* Clear output (running) / Remove terminal (dead) button */}
         <IconButton
-          aria-label="Clear output"
-          title="Clear output"
+          aria-label={isDead ? 'Remove terminal' : 'Clear output'}
+          title={isDead ? 'Remove terminal' : 'Clear output'}
           variant="ghost"
           size="md"
           onClick={handleClear}

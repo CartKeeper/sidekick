@@ -1,9 +1,43 @@
 // src/server/routes/supabase.ts
 import type { FastifyInstance } from 'fastify';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { newId, logAudit } from '../../core/db.js';
 import { encrypt, decrypt } from '../../core/crypto.js';
 
 const SUPABASE_API = 'https://api.supabase.com';
+
+// Env-var prefix per framework. PUBLIC Supabase creds (URL + anon key) need a
+// framework-specific prefix to reach the browser bundle; server-only secrets
+// (service role, JWT) are never prefixed.
+const ENV_STYLE_PREFIX: Record<string, string> = { plain: '', vite: 'VITE_', next: 'NEXT_PUBLIC_' };
+const ALL_PUBLIC_PREFIXES = ['', 'VITE_', 'NEXT_PUBLIC_'];
+
+/**
+ * Sniff a project's folder to guess which env-var conventions it uses, so the
+ * connect flow can pre-select the right prefixes. Always includes 'plain'
+ * (server code and the Supabase CLI read unprefixed names).
+ */
+export function detectEnvStyles(projectPath: string): string[] {
+  const styles: string[] = [];
+  if (projectPath && existsSync(projectPath)) {
+    try {
+      let deps: Record<string, string> = {};
+      const pkgPath = join(projectPath, 'package.json');
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+        deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+      }
+      const hasFile = (...names: string[]) => names.some((n) => existsSync(join(projectPath, n)));
+      if (deps['next'] || hasFile('next.config.js', 'next.config.ts', 'next.config.mjs')) styles.push('next');
+      if (deps['vite'] || hasFile('vite.config.js', 'vite.config.ts', 'vite.config.mjs')) styles.push('vite');
+    } catch {
+      // Unreadable package.json etc. — fall through to the plain default.
+    }
+  }
+  styles.push('plain');
+  return styles;
+}
 
 interface SyncResult {
   updated: number;
@@ -43,15 +77,17 @@ function syncProject(
       return result;
     }
 
-    // Gather secrets from Supabase
-    const secrets: Record<string, string> = {};
+    // Resolve each credential to a single canonical value pulled from Supabase.
+    const url = `https://${supabaseRef}.supabase.co`;
+    let region: string | null = null;
+    let anonKey: string | null = null;
+    let serviceRoleKey: string | null = null;
+    let jwtSecret: string | null = null;
 
     try {
-      // Project info → URL + region
+      // Project info → region (URL is derived from the ref above)
       const project = await supabaseFetch(`/v1/projects/${supabaseRef}`, token);
-      secrets['SUPABASE_URL'] = `https://${supabaseRef}.supabase.co`;
-      secrets['NEXT_PUBLIC_SUPABASE_URL'] = `https://${supabaseRef}.supabase.co`;
-      if (project.region) secrets['SUPABASE_REGION'] = project.region;
+      if (project.region) region = project.region;
     } catch (err: any) {
       result.errors.push(`Project info: ${err.message}`);
     }
@@ -60,12 +96,8 @@ function syncProject(
       // API keys
       const keys = await supabaseFetch(`/v1/projects/${supabaseRef}/api-keys`, token);
       for (const key of keys) {
-        if (key.name === 'anon') {
-          secrets['SUPABASE_ANON_KEY'] = key.api_key;
-          secrets['NEXT_PUBLIC_SUPABASE_ANON_KEY'] = key.api_key;
-        } else if (key.name === 'service_role') {
-          secrets['SUPABASE_SERVICE_ROLE_KEY'] = key.api_key;
-        }
+        if (key.name === 'anon') anonKey = key.api_key;
+        else if (key.name === 'service_role') serviceRoleKey = key.api_key;
       }
     } catch (err: any) {
       result.errors.push(`API keys: ${err.message}`);
@@ -74,9 +106,7 @@ function syncProject(
     try {
       // PostgREST config → JWT secret
       const postgrest = await supabaseFetch(`/v1/projects/${supabaseRef}/postgrest`, token);
-      if (postgrest.jwt_secret) {
-        secrets['SUPABASE_JWT_SECRET'] = postgrest.jwt_secret;
-      }
+      if (postgrest.jwt_secret) jwtSecret = postgrest.jwt_secret;
     } catch (err: any) {
       result.errors.push(`PostgREST config: ${err.message}`);
     }
@@ -87,9 +117,69 @@ function syncProject(
     // edge secrets back after they are written. Storing the digest corrupts
     // the .env at launch time.
 
-    // Upsert secrets into every environment
+    // Which env-var prefixes to emit for the PUBLIC creds (URL + anon key).
+    // Stored per project at connect time; fall back to the legacy default
+    // (unprefixed + NEXT_PUBLIC) for connections made before this existed, so
+    // re-syncing an old project never silently renames its keys.
+    const styleRow = db.prepare('SELECT supabase_env_styles FROM projects WHERE id = ?').get(projectId) as any;
+    let styles: string[];
+    try {
+      const parsed = JSON.parse(styleRow?.supabase_env_styles ?? 'null');
+      styles = Array.isArray(parsed) && parsed.length ? parsed : ['plain', 'next'];
+    } catch {
+      styles = ['plain', 'next'];
+    }
+    const selectedPrefixes = styles
+      .map((s) => ENV_STYLE_PREFIX[s])
+      .filter((p): p is string => p !== undefined);
+    const publicPrefixes = selectedPrefixes.length ? selectedPrefixes : [''];
+    // Other prefixes are UPDATED only if they already exist — never created — so
+    // we keep stray variants correct without injecting names a project never used.
+    const otherPrefixes = ALL_PUBLIC_PREFIXES.filter((p) => !publicPrefixes.includes(p));
+
+    // `canonical` names are always (re)written; `aliases` are update-if-present.
+    type CredGroup = { value: string; canonical: string[]; aliases: string[] };
+    const groups: CredGroup[] = [
+      {
+        value: url,
+        canonical: publicPrefixes.map((p) => `${p}SUPABASE_URL`),
+        aliases: otherPrefixes.map((p) => `${p}SUPABASE_URL`),
+      },
+    ];
+    if (anonKey) {
+      groups.push({
+        value: anonKey,
+        canonical: publicPrefixes.map((p) => `${p}SUPABASE_ANON_KEY`),
+        aliases: otherPrefixes.map((p) => `${p}SUPABASE_ANON_KEY`),
+      });
+    }
+    // Server-only secrets are NEVER public-prefixed.
+    if (serviceRoleKey) {
+      groups.push({ value: serviceRoleKey, canonical: ['SUPABASE_SERVICE_ROLE_KEY'], aliases: [] });
+    }
+    if (jwtSecret) {
+      groups.push({ value: jwtSecret, canonical: ['SUPABASE_JWT_SECRET'], aliases: [] });
+    }
+    if (region) {
+      groups.push({ value: region, canonical: ['SUPABASE_REGION'], aliases: [] });
+    }
+
+    // Upsert into every environment
     for (const env of envs) {
-      for (const [key, value] of Object.entries(secrets)) {
+      const existingKeys = new Set(
+        (db.prepare('SELECT key FROM secrets WHERE environment_id = ?').all(env.id) as any[]).map(
+          (r: any) => r.key
+        )
+      );
+
+      // Canonical names always; alias names only when already present in this env.
+      const targets: { key: string; value: string }[] = [];
+      for (const g of groups) {
+        for (const k of g.canonical) targets.push({ key: k, value: g.value });
+        for (const k of g.aliases) if (existingKeys.has(k)) targets.push({ key: k, value: g.value });
+      }
+
+      for (const { key, value } of targets) {
         const existing = db.prepare(
           'SELECT id, value_encrypted, iv, auth_tag, source FROM secrets WHERE environment_id = ? AND key = ?'
         ).get(env.id, key) as any;
@@ -164,9 +254,9 @@ export async function supabaseRoutes(app: FastifyInstance) {
 
   // POST /supabase/connect — link a Sidekick project to a Supabase project
   app.post<{
-    Body: { projectId: string; accessToken: string; supabaseProjectRef: string };
+    Body: { projectId: string; accessToken: string; supabaseProjectRef: string; envStyles?: string[] };
   }>('/supabase/connect', async (req, reply) => {
-    const { projectId, accessToken, supabaseProjectRef } = req.body;
+    const { projectId, accessToken, supabaseProjectRef, envStyles } = req.body;
 
     const project = app.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any;
     if (!project) return reply.status(404).send({ error: 'Project not found' });
@@ -179,6 +269,13 @@ export async function supabaseRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: `Failed to connect: ${err.message}` });
     }
 
+    // Resolve which env-var styles to store: sanitize the caller's choice, and
+    // fall back to auto-detecting from the project folder if none provided.
+    const validStyles = Array.isArray(envStyles)
+      ? envStyles.filter((s) => s === 'plain' || s === 'vite' || s === 'next')
+      : [];
+    const stylesToStore = validStyles.length ? validStyles : detectEnvStyles(project.path);
+
     // Encrypt and store the token
     const vaultKey = app.vault.requireKey();
     const enc = encrypt(accessToken, vaultKey);
@@ -189,9 +286,10 @@ export async function supabaseRoutes(app: FastifyInstance) {
         supabase_token_encrypted = ?,
         supabase_token_iv = ?,
         supabase_token_auth_tag = ?,
+        supabase_env_styles = ?,
         updated_at = datetime('now')
       WHERE id = ?`
-    ).run(supabaseProjectRef, enc.ciphertext, enc.iv, enc.authTag, projectId);
+    ).run(supabaseProjectRef, enc.ciphertext, enc.iv, enc.authTag, JSON.stringify(stylesToStore), projectId);
 
     logAudit(app.db, 'supabase_connected', 'project', projectId, project.name, {
       supabaseProject: supabaseProject.name,
@@ -282,7 +380,7 @@ export async function supabaseRoutes(app: FastifyInstance) {
     '/supabase/status/:projectId',
     async (req, reply) => {
       const project = app.db.prepare(
-        'SELECT supabase_project_ref, supabase_last_sync, supabase_token_encrypted FROM projects WHERE id = ?'
+        'SELECT supabase_project_ref, supabase_last_sync, supabase_token_encrypted, supabase_token_iv, supabase_token_auth_tag FROM projects WHERE id = ?'
       ).get(req.params.projectId) as any;
       if (!project) return reply.status(404).send({ error: 'Project not found' });
 
@@ -329,6 +427,33 @@ export async function supabaseRoutes(app: FastifyInstance) {
       } catch (err: any) {
         return reply.status(400).send({ error: err.message });
       }
+    }
+  );
+
+  // POST /supabase/organizations — list orgs so the connect flow can drill down
+  // org → project. Picking the org first prevents grabbing a same-named project
+  // (e.g. a fork) from the wrong organization.
+  app.post<{ Body: { accessToken: string } }>(
+    '/supabase/organizations',
+    async (req, reply) => {
+      const { accessToken } = req.body;
+      try {
+        const orgs = await supabaseFetch('/v1/organizations', accessToken);
+        return orgs;
+      } catch (err: any) {
+        return reply.status(400).send({ error: err.message });
+      }
+    }
+  );
+
+  // GET /supabase/detect/:projectId — sniff the local project folder so the
+  // connect UI can pre-select Vite / Next.js / plain env-var styles.
+  app.get<{ Params: { projectId: string } }>(
+    '/supabase/detect/:projectId',
+    async (req, reply) => {
+      const project = app.db.prepare('SELECT path FROM projects WHERE id = ?').get(req.params.projectId) as any;
+      if (!project) return reply.status(404).send({ error: 'Project not found' });
+      return { styles: detectEnvStyles(project.path) };
     }
   );
 }

@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Upload, Download, KeyRound, Database, RefreshCw, Unlink } from 'lucide-react';
+import { Plus, Upload, Download, KeyRound, Database, RefreshCw, Unlink, Check } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { api, type SupabaseStatus } from '../api/client';
 import { SecretRow } from './SecretRow';
 import { AddSecretModal } from './AddSecretModal';
 import { ImportModal } from './ImportModal';
-import { Button, Input, Skeleton, EmptyState, cn } from './ui';
+import { Button, Input, Select, Skeleton, EmptyState, cn } from './ui';
+
+// Env-var prefix conventions the connect flow can emit for public Supabase creds.
+const ENV_STYLE_OPTIONS = [
+  { id: 'vite', label: 'Vite', hint: 'VITE_' },
+  { id: 'next', label: 'Next.js', hint: 'NEXT_PUBLIC_' },
+  { id: 'plain', label: 'Plain', hint: 'SUPABASE_' },
+];
 
 function SkeletonRow() {
   return (
@@ -43,8 +50,11 @@ export function SecretsTab() {
   // Supabase connection state
   const [sbStatus, setSbStatus] = useState<SupabaseStatus | null>(null);
   const [sbToken, setSbToken] = useState('');
+  const [sbOrgs, setSbOrgs] = useState<any[]>([]);
+  const [sbSelectedOrg, setSbSelectedOrg] = useState('');
   const [sbProjects, setSbProjects] = useState<any[]>([]);
   const [sbSelectedRef, setSbSelectedRef] = useState('');
+  const [sbEnvStyles, setSbEnvStyles] = useState<string[]>(['plain']);
   const [sbStep, setSbStep] = useState<'idle' | 'token' | 'pick'>('idle');
   const [sbLoading, setSbLoading] = useState(false);
   const [sbError, setSbError] = useState<string | null>(null);
@@ -62,8 +72,23 @@ export function SecretsTab() {
     setSbLoading(true);
     setSbError(null);
     try {
-      const projects = await api.supabase.listProjects(sbToken.trim());
+      const [orgs, projects] = await Promise.all([
+        api.supabase.listOrganizations(sbToken.trim()),
+        api.supabase.listProjects(sbToken.trim()),
+      ]);
+      setSbOrgs(orgs);
       setSbProjects(projects);
+      // Auto-select the org only when there's exactly one — otherwise force a
+      // deliberate choice so a same-named project from the wrong org can't slip in.
+      setSbSelectedOrg(orgs.length === 1 ? orgs[0].id : '');
+      setSbSelectedRef('');
+      // Pre-select env-var styles by sniffing the project folder (best-effort).
+      if (currentProject) {
+        api.supabase
+          .detectEnvStyles(currentProject.id)
+          .then((r) => { if (r.styles?.length) setSbEnvStyles(r.styles); })
+          .catch(() => {});
+      }
       setSbStep('pick');
     } catch (err: unknown) {
       setSbError(err instanceof Error ? err.message : 'Invalid token');
@@ -72,12 +97,23 @@ export function SecretsTab() {
     }
   };
 
+  const resetSbFlow = () => {
+    setSbStep('idle');
+    setSbError(null);
+    setSbToken('');
+    setSbOrgs([]);
+    setSbSelectedOrg('');
+    setSbProjects([]);
+    setSbSelectedRef('');
+    setSbEnvStyles(['plain']);
+  };
+
   const handleSbConnect = async () => {
     if (!currentProject || !sbSelectedRef) return;
     setSbLoading(true);
     setSbError(null);
     try {
-      const result = await api.supabase.connect(currentProject.id, sbToken.trim(), sbSelectedRef);
+      const result = await api.supabase.connect(currentProject.id, sbToken.trim(), sbSelectedRef, sbEnvStyles);
       setSbStatus({
         connected: true,
         projectRef: sbSelectedRef,
@@ -86,8 +122,7 @@ export function SecretsTab() {
         lastSync: new Date().toISOString(),
       });
       setSbSyncResult(`Imported ${result.sync.updated} secrets`);
-      setSbStep('idle');
-      setSbToken('');
+      resetSbFlow();
       fetchSecrets();
     } catch (err: unknown) {
       setSbError(err instanceof Error ? err.message : 'Connection failed');
@@ -128,6 +163,13 @@ export function SecretsTab() {
 
   const environments = currentProject?.environments ?? [];
   const activeEnv = environments.find((e) => e.id === currentEnvId);
+
+  // Supabase connect drill-down: only show projects belonging to the chosen org.
+  const sbVisibleProjects = sbSelectedOrg
+    ? sbProjects.filter((sp) => sp.organization_id === sbSelectedOrg)
+    : [];
+  const sbSelectedProject = sbProjects.find((sp) => sp.id === sbSelectedRef);
+  const sbSelectedOrgName = sbOrgs.find((o) => o.id === sbSelectedOrg)?.name;
 
   return (
     <>
@@ -244,8 +286,12 @@ export function SecretsTab() {
           )}
         </div>
 
-        {/* Supabase connection */}
-        <div className="border border-brand-supabase/20 rounded-xl p-4 bg-brand-supabase/3">
+        {/* Integrations — compact connectors that sit at the bottom */}
+        <div className="flex flex-col gap-2">
+          <label className="block text-[11px] font-semibold text-text-muted uppercase tracking-[0.08em]">
+            Integrations
+          </label>
+          <div className="max-w-sm border border-brand-supabase/20 rounded-xl p-4 bg-brand-supabase/3">
           <div className="flex items-center gap-2 mb-3">
             <Database size={14} className="text-brand-supabase" />
             <span className="text-[12px] font-semibold text-brand-supabase tracking-[0.05em] uppercase">
@@ -307,8 +353,8 @@ export function SecretsTab() {
             </div>
           ) : sbStep === 'idle' ? (
             <div>
-              <p className="text-[13px] text-text-secondary m-0 mb-3 leading-relaxed">
-                Connect to auto-sync API keys, database credentials, and Edge Function secrets.
+              <p className="text-[12px] text-text-muted m-0 mb-3 leading-relaxed">
+                Auto-sync API keys & database credentials.
               </p>
               <button
                 type="button"
@@ -349,7 +395,7 @@ export function SecretsTab() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => { setSbStep('idle'); setSbError(null); setSbToken(''); }}
+                  onClick={resetSbFlow}
                 >
                   Cancel
                 </Button>
@@ -367,42 +413,122 @@ export function SecretsTab() {
             </div>
           ) : sbStep === 'pick' ? (
             <div className="flex flex-col gap-3">
-              <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase">
-                Select Supabase Project
-              </label>
-              <div className="flex flex-col gap-1.5 max-h-50 overflow-y-auto">
-                {sbProjects.map((sp) => (
-                  <button
-                    key={sp.id}
-                    type="button"
-                    onClick={() => setSbSelectedRef(sp.id)}
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer text-left w-full',
-                      'transition-colors duration-150',
-                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
-                      sbSelectedRef === sp.id
-                        ? 'bg-brand-supabase/8 border border-brand-supabase/40'
-                        : 'bg-abyss border border-border-default hover:bg-surface-hover',
-                    )}
-                  >
-                    <Database
-                      size={14}
-                      className={sbSelectedRef === sp.id ? 'text-brand-supabase' : 'text-text-muted'}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className={cn(
-                        'text-[13px] font-semibold truncate',
-                        sbSelectedRef === sp.id ? 'text-text-primary' : 'text-text-secondary',
-                      )}>
-                        {sp.name}
-                      </div>
-                      <div className="text-[11px] text-text-muted font-mono truncate">
-                        {sp.id} · {sp.region}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+              {/* Step 1: organization */}
+              <div>
+                <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                  Organization
+                </label>
+                <Select
+                  value={sbSelectedOrg}
+                  onChange={(e) => { setSbSelectedOrg(e.target.value); setSbSelectedRef(''); }}
+                >
+                  <option value="">Choose an organization…</option>
+                  {sbOrgs.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </Select>
               </div>
+
+              {/* Step 2: project (only the chosen org's projects) */}
+              {sbSelectedOrg && (
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                    Project
+                  </label>
+                  {sbVisibleProjects.length === 0 ? (
+                    <p className="text-[12px] text-text-muted m-0">No projects in this organization.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 max-h-50 overflow-y-auto">
+                      {sbVisibleProjects.map((sp) => (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          onClick={() => setSbSelectedRef(sp.id)}
+                          className={cn(
+                            'flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer text-left w-full',
+                            'transition-colors duration-150',
+                            'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                            sbSelectedRef === sp.id
+                              ? 'bg-brand-supabase/8 border border-brand-supabase/40'
+                              : 'bg-abyss border border-border-default hover:bg-surface-hover',
+                          )}
+                        >
+                          <Database
+                            size={14}
+                            className={sbSelectedRef === sp.id ? 'text-brand-supabase' : 'text-text-muted'}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className={cn(
+                              'text-[13px] font-semibold truncate',
+                              sbSelectedRef === sp.id ? 'text-text-primary' : 'text-text-secondary',
+                            )}>
+                              {sp.name}
+                            </div>
+                            <div className="text-[11px] text-text-muted font-mono truncate">
+                              {sp.id} · {sp.region}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Env var format — auto-detected from the project folder, adjustable */}
+              {sbSelectedRef && (
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                    Env var format
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ENV_STYLE_OPTIONS.map((opt) => {
+                      const on = sbEnvStyles.includes(opt.id);
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setSbEnvStyles((prev) =>
+                              on ? prev.filter((s) => s !== opt.id) : [...prev, opt.id],
+                            )
+                          }
+                          className={cn(
+                            'flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[12px] font-semibold cursor-pointer transition-colors duration-150',
+                            'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                            on
+                              ? 'border-brand-supabase/50 bg-brand-supabase/10 text-brand-supabase'
+                              : 'border-border-default bg-abyss text-text-muted hover:bg-surface-hover hover:text-text-secondary',
+                          )}
+                        >
+                          {on && <Check size={12} />}
+                          {opt.label}
+                          <span className="font-mono text-[10px] opacity-70">{opt.hint}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-text-muted mt-1.5 mb-0">
+                    Auto-detected from your project. Public keys get these prefixes; server secrets stay unprefixed.
+                  </p>
+                </div>
+              )}
+
+              {/* Confirmation — eyeball exactly what gets linked before it writes */}
+              {sbSelectedProject && (
+                <div className="rounded-lg border border-brand-supabase/25 bg-brand-supabase/5 px-3 py-2.5">
+                  <p className="text-[12px] text-text-secondary m-0 leading-relaxed">
+                    Connect <span className="font-semibold text-text-primary">{currentProject?.name}</span>
+                    {' → '}
+                    <span className="font-semibold text-text-primary">{sbSelectedOrgName}</span>
+                    {' / '}
+                    <span className="font-semibold text-text-primary">{sbSelectedProject.name}</span>
+                  </p>
+                  <p className="text-[11px] text-text-muted font-mono m-0 mt-0.5">{sbSelectedProject.id}</p>
+                </div>
+              )}
+
               {sbError && <p className="text-[12px] text-danger m-0">{sbError}</p>}
               <div className="flex gap-2">
                 <Button
@@ -415,7 +541,7 @@ export function SecretsTab() {
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={sbLoading || !sbSelectedRef}
+                  disabled={sbLoading || !sbSelectedRef || sbEnvStyles.length === 0}
                   loading={sbLoading}
                   onClick={handleSbConnect}
                   className="bg-brand-supabase hover:bg-brand-supabase/90 border-transparent"
@@ -425,6 +551,7 @@ export function SecretsTab() {
               </div>
             </div>
           ) : null}
+          </div>
         </div>
       </motion.div>
 

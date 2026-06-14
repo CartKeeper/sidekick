@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const SERVER_PORT = 9999;
-const VITE_PORT = 5173;
+const VITE_PORT = 5199;
 
 let mainWindow: BrowserWindow | null = null;
 

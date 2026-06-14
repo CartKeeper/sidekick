@@ -73,6 +73,7 @@ interface AppState {
   stopProject: (projectId: string) => Promise<void>;
   restartProject: (projectId: string) => Promise<void>;
   killProcess: (processId: string) => Promise<void>;
+  dismissProcess: (processId: string) => Promise<void>;
   appendOutput: (processId: string, data: string) => void;
   handleProcessExit: (processId: string) => void;
   fetchProcessStatus: () => Promise<void>;
@@ -328,6 +329,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err: unknown) {
       set({ error: err instanceof Error ? err.message : 'Kill failed' });
     }
+  },
+
+  // Remove a finished (crashed/stopped) terminal from the list. Works even when
+  // the vault is locked (the endpoint is secret-free); drops it from the UI
+  // regardless of the server result.
+  dismissProcess: async (processId) => {
+    try {
+      await api.process.remove(processId);
+    } catch {
+      // ignore — still clear it from the UI
+    }
+    set((state) => {
+      const output = new Map(state.processOutput);
+      output.delete(processId);
+      return {
+        runningProcesses: state.runningProcesses.filter((p) => p.id !== processId),
+        processOutput: output,
+      };
+    });
   },
 
   appendOutput: (processId, data) => {

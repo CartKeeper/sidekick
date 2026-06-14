@@ -37,8 +37,9 @@ export async function processRoutes(app: FastifyInstance) {
 
   // Vault lock guard for all other routes
   app.addHook('preHandler', async (req, reply) => {
-    // Skip the SSE route
+    // Skip the SSE route and the (secret-free) remove-dead-process route
     if (req.url.endsWith('/process/output')) return;
+    if (req.url.includes('/process/remove/')) return;
     try {
       app.vault.requireKey();
     } catch {
@@ -156,6 +157,18 @@ export async function processRoutes(app: FastifyInstance) {
     '/process/kill/:processId',
     async (req) => {
       app.processManager.kill(req.params.processId);
+      return { success: true };
+    }
+  );
+
+  // POST /process/remove/:processId — drop a finished (crashed/stopped) process
+  // from the list. Vault-free: touches no secrets, just bookkeeping, so dead
+  // terminals can be cleared even when the vault is locked.
+  app.post<{ Params: { processId: string } }>(
+    '/process/remove/:processId',
+    async (req, reply) => {
+      const ok = app.processManager.remove(req.params.processId);
+      if (!ok) return reply.status(409).send({ error: 'Process is still running — stop it first' });
       return { success: true };
     }
   );
