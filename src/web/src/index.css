@@ -112,6 +112,16 @@ html, body {
   background: var(--color-border-strong);
 }
 
+/* Invisible scrollbar — scrolls but renders no track/thumb (dock icon column) */
+.hide-scrollbar {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* legacy Edge */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Tabular nums for data */
 .tabular-nums {
   font-variant-numeric: tabular-nums;

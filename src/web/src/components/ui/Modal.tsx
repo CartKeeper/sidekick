@@ -19,17 +19,30 @@ export function Modal({ open, onClose, size = 'sm', labelledBy, children }: Moda
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
 
+  // Keep the latest onClose in a ref so the keydown listener never needs to
+  // re-bind when the parent passes a fresh callback on every render.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Move focus into the dialog ONLY when it opens. Depending on `onClose` here
+  // would re-run this on every keystroke (parents recreate the handler each
+  // render), stealing focus back to the first element after a single character.
+  useEffect(() => {
+    if (!open) return;
+    const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+  }, [open]);
+
+  // Esc to close, Tab to trap focus. Bound once per open; reads onClose via ref.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'Tab') trapFocus(e, ref.current);
     };
     document.addEventListener('keydown', onKey);
-    const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
-    first?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>

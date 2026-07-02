@@ -1,4 +1,4 @@
-import { Maximize2, Settings } from 'lucide-react';
+import { Maximize2, Settings, Network } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ProjectIcon } from './ProjectIcon';
 import { IconButton, cn } from './ui';
@@ -37,14 +37,14 @@ function StripTab({
   glowColor?: string;
   bare?: boolean;
 }) {
-  // COMPUTED: active indicator border lives on the outer (screen-facing) edge.
-  // dock right → borderLeft; dock left → borderRight. Driven by runtime value.
+  // Reserve a transparent edge border so icons don't shift; the active state is
+  // shown with a background tint only — no accent slash on the screen-facing edge.
   // `bare` tabs (the logo) carry no border or background — the icon stands alone.
   const indicatorStyle: React.CSSProperties = bare
     ? {}
     : edge === 'left'
-      ? { borderRight: active ? '3px solid var(--color-accent)' : '3px solid transparent' }
-      : { borderLeft: active ? '3px solid var(--color-accent)' : '3px solid transparent' };
+      ? { borderRight: '3px solid transparent' }
+      : { borderLeft: '3px solid transparent' };
 
   // A running project glows in its OWN color (the one chosen in Settings) — a
   // subtle backglow plus a faint tint, just enough to read "on" at a glance.
@@ -135,47 +135,63 @@ export function DockStrip({ activeTab, onTabClick, onUndock }: DockStripProps) {
         <div className="w-10 h-px bg-border-default my-1 shrink-0" />
       )}
 
-      {/* Launchable project icons */}
-      {toolbarProjects.map((proj) => {
-        const running = isProjectRunning(proj.id);
-        const tabId = `project:${proj.id}`;
-        const isActive = activeTab === tabId;
+      {/* Scrollable project-icon region. Takes the remaining height so the
+          settings/undock controls stay pinned at the bottom; overflowing icons
+          scroll instead of running off the page. Scrollbar is hidden. */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto hide-scrollbar flex flex-col items-center gap-2.5">
+        {/* Launchable project icons */}
+        {toolbarProjects.map((proj) => {
+          const running = isProjectRunning(proj.id);
+          const tabId = `project:${proj.id}`;
+          const isActive = activeTab === tabId;
 
-        return (
-          <StripTab
-            key={proj.id}
-            id={tabId}
-            edge={edge}
-            active={isActive}
-            glowColor={running ? proj.color : undefined}
-            onClick={() => handleProjectClick(proj.id)}
-            title={proj.name}
-          >
-            <div className="relative">
-              <ProjectIcon
-                icon={proj.icon}
-                iconPath={proj.icon_path}
-                color={proj.color}
-                name={proj.name}
-                size={44}
-                borderRadius={11}
-              />
-              {/* Running indicator dot */}
-              {running && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-success shrink-0"
-                  style={{
-                    boxShadow: '0 0 4px var(--color-success)',
-                    border: '2px solid var(--color-abyss)',
-                  }}
+          return (
+            <StripTab
+              key={proj.id}
+              id={tabId}
+              edge={edge}
+              active={isActive}
+              glowColor={running ? proj.color : undefined}
+              onClick={() => handleProjectClick(proj.id)}
+              title={proj.name}
+            >
+              <div className="relative">
+                <ProjectIcon
+                  icon={proj.icon}
+                  iconPath={proj.icon_path}
+                  color={proj.color}
+                  name={proj.name}
+                  size={44}
+                  borderRadius={11}
                 />
-              )}
-            </div>
-          </StripTab>
-        );
-      })}
+                {/* Running indicator dot */}
+                {running && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-success shrink-0"
+                    style={{
+                      boxShadow: '0 0 4px var(--color-success)',
+                      border: '2px solid var(--color-abyss)',
+                    }}
+                  />
+                )}
+              </div>
+            </StripTab>
+          );
+        })}
+      </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Divider that caps the scroll region and keeps the controls below it */}
+      <div className="w-10 h-px bg-border-default my-1 shrink-0" />
+
+      {/* Ports — jump straight to the Ports view to kill a port */}
+      <StripTab
+        id="ports"
+        edge={edge}
+        active={activeTab === 'ports'}
+        onClick={() => onTabClick('ports')}
+        title="Ports"
+      >
+        <Network size={20} />
+      </StripTab>
 
       {/* Preferences (dock position, etc.) */}
       <StripTab

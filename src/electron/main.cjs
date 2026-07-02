@@ -89,6 +89,25 @@ function writePrefs(patch) {
   return next;
 }
 
+// ─── Launch at Login ─────────────────────────────────────────────────────────
+
+// Whether Sidekick should start at login. Defaults to on (the user wants it
+// loading "like a startup"); persisted so the tray toggle survives restarts.
+function isOpenAtLoginEnabled() {
+  const prefs = readPrefs();
+  return prefs.openAtLogin !== false;
+}
+
+// Apply the saved open-at-login preference to the OS login-items list.
+function syncLoginItem() {
+  if (process.platform !== 'darwin' && process.platform !== 'win32') return;
+  try {
+    app.setLoginItemSettings({ openAtLogin: isOpenAtLoginEnabled() });
+  } catch (e) {
+    console.error('Failed to sync login item:', e);
+  }
+}
+
 // ─── Dock Geometry ───────────────────────────────────────────────────────────
 
 function resolveDockDisplay() {
@@ -341,14 +360,19 @@ function togglePanel() {
 // ─── System Tray ─────────────────────────────────────────────────────────────
 
 function createTray() {
-  const size = 18;
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="9" cy="9" r="7" fill="#6366f1"/>
-    <path d="M7 8.5L9 6L11 8.5M9 6V12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  </svg>`;
-
-  const icon = nativeImage.createFromBuffer(Buffer.from(svg));
-  tray = new Tray(icon.resize({ width: size, height: size }));
+  // Tray icon rendered from PNG (18px + 36px retina), embedded as base64.
+  // Electron's nativeImage cannot decode SVG, so the previous SVG buffer
+  // produced an empty, invisible icon (the tray was there but showed nothing).
+  // base64 keeps it self-contained — the packaged bundle does not ship the
+  // assets/ folder. Marked as a template image so it adapts to the light/dark
+  // macOS menu bar.
+  const ICON_1X = 'iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAABmJLR0QA/wD/AP+gvaeTAAABQElEQVQ4jbXUTS5EQRQF4I8J3R0GVmAVlsAQA8TPHixA2h6sQCxAxFB3BHOJoZ9uMcESaAOeQd0n1Y/WPeAkN3k5975T51bdKv4IYwP4BpYwj9ngHtDGEV5GEV/HMwr0cI0bvAX3hLVhIrtRfBeC9SxXxwY6UdP8zUmBE0z9stgUWlG7Wk02op27ikgNZxG1jJ9GF48V1zZjhfWMG8dh8EV8jw/5xwFeK+p7UfgRUQSXd9HDfi50IZ1Mie3MxVVE6W47q7uNtr+sfuifqTmcYwvvEVvBzVXaL4a1VuIyooq+1kpHLUxK0zwqljER/36hLk1sx/cZOo3IMY176fhrlZw1qd9WRWwmIhdpS/u6MshuM8S60pw0slxD2vD7ENkZJFJiNSwX0kW91X9pH39yMugZqWMRC/qfkRMcSyf8P/gEMUtb6SJi9KYAAAAASUVORK5CYII=';
+  const ICON_2X = 'iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAABmJLR0QA/wD/AP+gvaeTAAADCElEQVRYhe2YzUtUURjGf1YblVoJqZkObUwtWgSlm3aSYaXLop3bDCKoRo3WfRAtIkgMFxXRJiiqP8FNEFRkkZZZ6qTiIoOaYpJpcc6Z3ns9H3ecZucDB87H877nuefzPRfW4UdFCba7gD3AVqBB180Ai8BLYLw0acnQAlwDPgL5QPqguTvLIaQeGAZyCYTE0wpwR/sIIsmU9QB3gc2WtmngCzCryw1AI5CycL8DJ4CnSYTZUAEMor5QfvEskMY/FS3ado7Vo5Veq6DBmLOfwABQVYSPKmAIyMZ8nS9WTA/RkckA+4p1ItCufciROprUuB4131JMYwliDJpiopaB2iSGI8IoC+wP8PeiFve0zoe4P4T/WyExLUS39kCAvwOYF/x5XefDkODngGYf+bogz+FfwDXAe6KLNa/rajx2lagT3fCv+gTJE9g3OpXAmEWMSWOa44LcwZMu0u6YU9c5swF46BFj0hNgo8NHa4zbaiMdF4RPLtXAjZizP458XnNdmBa8Y/JrDbaJvEvQOaBflJ8DD0T5Pmq6DPqBsx5BBoV7TgqqE/mvFgddwCVRngC6UdvYIAv06jaDy9o2jkxIUF7kbZdup6hfAA4BSxbekm5bEL46LTzZR6FvKUiOii1UGAU+69QNTFk4BlOaY/ijFo7sozBamxyCUhYH4456F14E+LKt0Lccodci34Q6tcuFNqL3Y6FvKegN6mA06C2jIOl7EnhrEwTwWORPAdVlEFMNnBTlR7IxLmgEdbiBOgZOJ+gg78i7cIZ/R0wOuB0yGCYafrQH+H2C3xfgdgC/BP9mSAwo9cvCKINa5D4c1MmHFGo3Gb/fUG+6ROgiei8tAgeSGlvQEROzAhwu1kma6EWZBS5Q3EKvBi4SnaY86k5cE9KsfgZlUPGMNWTQaENFhjKGNtGAV0ySh+IR4B6wxdJmrgb5UExhfxQsox6KzxL0GUQN6qb/TfFP6Rxq59at8vof0IyKgScTCJkArhAI4uMo5XdMK+p3TC2wXdfNoHbTK+BdCb7X4cRf9x8ju19PnbkAAAAASUVORK5CYII=';
+  const icon = nativeImage.createEmpty();
+  icon.addRepresentation({ scaleFactor: 1, buffer: Buffer.from(ICON_1X, 'base64') });
+  icon.addRepresentation({ scaleFactor: 2, buffer: Buffer.from(ICON_2X, 'base64') });
+  icon.setTemplateImage(true);
+  tray = new Tray(icon);
   tray.setToolTip('Sidekick');
 
   function rebuildMenu() {
@@ -370,6 +394,16 @@ function createTray() {
           click: () => {
             if (dockMode) switchToDetached();
             else switchToDocked();
+            rebuildMenu();
+          },
+        },
+        {
+          label: 'Open at Login',
+          type: 'checkbox',
+          checked: isOpenAtLoginEnabled(),
+          click: (item) => {
+            writePrefs({ openAtLogin: item.checked });
+            syncLoginItem();
             rebuildMenu();
           },
         },
@@ -541,16 +575,21 @@ if (!gotTheLock) {
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
-  // Replace the default Electron dock icon with the Sidekick logo. Packaged
-  // builds get their icon from the .icns bundle; this covers the dev run.
-  if (process.platform === 'darwin' && app.dock) {
-    const dockIcon = path.join(__dirname, '..', '..', 'assets', 'icon_1024.png');
+  // Run as a background / menu-bar app: no icon in the macOS Dock (bottom bar)
+  // and no entry in the Cmd-Tab app switcher. Sidekick's identity lives in the
+  // menu-bar tray icon (top-right) instead. The packaged build also sets
+  // LSUIElement in Info.plist so the Dock icon never flashes on launch.
+  if (process.platform === 'darwin') {
     try {
-      if (fs.existsSync(dockIcon)) app.dock.setIcon(dockIcon);
+      app.setActivationPolicy('accessory');
     } catch (e) {
-      console.error('Failed to set dock icon:', e);
+      console.error('Failed to set accessory activation policy:', e);
     }
   }
+
+  // Launch Sidekick automatically at login so it's always running in the
+  // background. Controlled via the tray menu's "Open at Login" toggle.
+  syncLoginItem();
 
   setupIPC();
   loadAutoLockFromPrefs();
