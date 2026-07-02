@@ -197,3 +197,26 @@ describe('logAudit', () => {
     expect(JSON.parse(rows[0].details)).toEqual({ color: '#fff' });
   });
 });
+
+describe('coolify columns migration', () => {
+  it('adds all coolify_* columns to projects', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sk-coolify-'));
+    const dbPath = join(dir, 'm.db');
+    const db = getDb(dbPath);
+    const cols = new Set(
+      (db.prepare("PRAGMA table_info(projects)").all() as { name: string }[]).map((c) => c.name)
+    );
+    for (const c of [
+      'coolify_instance_url',
+      'coolify_api_token_encrypted', 'coolify_api_token_iv', 'coolify_api_token_auth_tag',
+      'coolify_cf_access_client_id',
+      'coolify_cf_access_secret_encrypted', 'coolify_cf_access_secret_iv', 'coolify_cf_access_secret_auth_tag',
+      'coolify_resource_type', 'coolify_resource_uuid', 'coolify_resource_name',
+      'coolify_target_environment', 'coolify_sync_mode', 'coolify_last_sync',
+    ]) {
+      expect(cols.has(c)).toBe(true);
+    }
+    closeDb(dbPath);
+    rmSync(dir, { recursive: true, force: true });
+  });
+});

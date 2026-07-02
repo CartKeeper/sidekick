@@ -15,6 +15,7 @@ import { processRoutes } from './routes/process.js';
 import { ProcessManager } from '../process/manager.js';
 import { migrationRoutes } from '../migration/api.js';
 import { supabaseRoutes } from './routes/supabase.js';
+import { coolifyRoutes } from './routes/coolify.js';
 import { portsRoutes } from './routes/ports.js';
 import type Database from 'better-sqlite3';
 
@@ -55,6 +56,7 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
   await app.register(processRoutes, { prefix: '/api' });
   await app.register(migrationRoutes, { prefix: '/api' });
   await app.register(supabaseRoutes, { prefix: '/api' });
+  await app.register(coolifyRoutes, { prefix: '/api' });
   await app.register(portsRoutes, { prefix: '/api' });
 
   const projectRoot = resolve(import.meta.dirname ?? __dirname, '..', '..');

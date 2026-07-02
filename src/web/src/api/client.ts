@@ -96,6 +96,43 @@ export interface SupabaseSyncResult {
   errors: string[];
 }
 
+export interface CoolifyStatus {
+  connected: boolean;
+  instanceUrl: string;
+  resourceType: string;
+  resourceName: string;
+  targetEnvironment: string;
+  syncMode: string;
+  lastSync: string | null;
+}
+
+export interface CoolifyResource {
+  type: 'service' | 'application';
+  uuid: string;
+  name: string;
+}
+
+export interface CoolifySyncResult {
+  synced: number;
+  updated: number;
+  unchanged: number;
+  skippedEmpty: number;
+  conflicts: string[];
+  errors: string[];
+}
+
+export interface CoolifyConnectArgs {
+  instanceUrl: string;
+  token: string;
+  cfAccessId?: string;
+  cfAccessSecret?: string;
+  resourceType: 'service' | 'application';
+  resourceUuid: string;
+  resourceName: string;
+  targetEnvironment: string;
+  syncMode: 'merge' | 'overwrite';
+}
+
 export interface SearchResult {
   id: string;
   key: string;
@@ -230,6 +267,20 @@ export const api = {
       post<SupabaseSyncResult>(`/supabase/sync/${projectId}`),
     status: (projectId: string) =>
       get<SupabaseStatus>(`/supabase/status/${projectId}`),
+  },
+  coolify: {
+    test: (creds: { instanceUrl: string; token: string; cfAccessId?: string; cfAccessSecret?: string }) =>
+      post<{ success: boolean; count: number }>('/coolify/test', creds),
+    resources: (creds: { instanceUrl: string; token: string; cfAccessId?: string; cfAccessSecret?: string }) =>
+      post<CoolifyResource[]>('/coolify/resources', creds),
+    connect: (projectId: string, args: CoolifyConnectArgs) =>
+      post<{ success: boolean; resource: CoolifyResource; sync: CoolifySyncResult }>(`/coolify/connect/${projectId}`, args),
+    sync: (projectId: string) =>
+      post<CoolifySyncResult>(`/coolify/sync/${projectId}`),
+    status: (projectId: string) =>
+      get<CoolifyStatus>(`/coolify/status/${projectId}`),
+    disconnect: (projectId: string) =>
+      post<{ success: boolean }>(`/coolify/disconnect/${projectId}`),
   },
 };
 

@@ -117,6 +117,36 @@ export function getDb(dbPath?: string): Database.Database {
     db.exec("ALTER TABLE projects ADD COLUMN supabase_env_styles TEXT DEFAULT NULL");
   }
 
+  // Coolify sync — mirror of the Supabase fields, for self-hosted stacks.
+  if (!colNames.has('coolify_instance_url')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_instance_url TEXT DEFAULT ''");
+  }
+  if (!colNames.has('coolify_api_token_encrypted')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_api_token_encrypted TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_api_token_iv TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_api_token_auth_tag TEXT DEFAULT NULL");
+  }
+  if (!colNames.has('coolify_cf_access_client_id')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_cf_access_client_id TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_cf_access_secret_encrypted TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_cf_access_secret_iv TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_cf_access_secret_auth_tag TEXT DEFAULT NULL");
+  }
+  if (!colNames.has('coolify_resource_type')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_resource_type TEXT DEFAULT ''");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_resource_uuid TEXT DEFAULT ''");
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_resource_name TEXT DEFAULT ''");
+  }
+  if (!colNames.has('coolify_target_environment')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_target_environment TEXT DEFAULT 'prod'");
+  }
+  if (!colNames.has('coolify_sync_mode')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_sync_mode TEXT DEFAULT 'merge'");
+  }
+  if (!colNames.has('coolify_last_sync')) {
+    db.exec("ALTER TABLE projects ADD COLUMN coolify_last_sync TEXT DEFAULT NULL");
+  }
+
   // Secrets source column
   const secretCols = db.prepare("PRAGMA table_info(secrets)").all() as { name: string }[];
   const secretColNames = new Set(secretCols.map((c) => c.name));
