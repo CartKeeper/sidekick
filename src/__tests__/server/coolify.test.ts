@@ -154,15 +154,17 @@ describe('coolify HTTP routes', () => {
   });
 
   it('POST /coolify/disconnect clears config and demotes secrets to manual', async () => {
-    connectCoolify(ctx, projectId);
+    connectCoolify(ctx, projectId, { targetEnvironment: 'dev', syncMode: 'overwrite' });
     stubEnvs([{ key: 'FROM_COOLIFY', value: 'v' }]);
     await ctx.app.inject({ method: 'POST', url: `/api/coolify/sync/${projectId}` });
 
     const res = await ctx.app.inject({ method: 'POST', url: `/api/coolify/disconnect/${projectId}` });
     expect(res.statusCode).toBe(200);
 
-    const proj = ctx.app.db.prepare('SELECT coolify_instance_url, coolify_api_token_encrypted FROM projects WHERE id = ?').get(projectId) as any;
+    const proj = ctx.app.db.prepare('SELECT coolify_instance_url, coolify_api_token_encrypted, coolify_target_environment, coolify_sync_mode FROM projects WHERE id = ?').get(projectId) as any;
     expect(proj.coolify_api_token_encrypted).toBeNull();
+    expect(proj.coolify_target_environment).toBe('prod');
+    expect(proj.coolify_sync_mode).toBe('merge');
     const sec = ctx.app.db.prepare('SELECT source FROM secrets WHERE environment_id = ? AND key = ?').get(envId, 'FROM_COOLIFY') as any;
     expect(sec.source).toBe('manual');
   });

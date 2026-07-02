@@ -416,6 +416,7 @@ export async function coolifyRoutes(app: FastifyInstance) {
         coolify_cf_access_client_id = NULL,
         coolify_cf_access_secret_encrypted = NULL, coolify_cf_access_secret_iv = NULL, coolify_cf_access_secret_auth_tag = NULL,
         coolify_resource_type = '', coolify_resource_uuid = '', coolify_resource_name = '',
+        coolify_target_environment = 'prod', coolify_sync_mode = 'merge',
         coolify_last_sync = NULL,
         updated_at = datetime('now')
       WHERE id = ?`
