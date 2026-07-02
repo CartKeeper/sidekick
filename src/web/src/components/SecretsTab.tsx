@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Upload, Download, KeyRound, Database, RefreshCw, Unlink, Check } from 'lucide-react';
+import { Plus, Upload, Download, KeyRound, Database, RefreshCw, Unlink, Check, Server, HelpCircle } from 'lucide-react';
 import { useAppStore } from '../stores/app';
-import { api, type SupabaseStatus } from '../api/client';
+import { api, type SupabaseStatus, type CoolifyStatus, type CoolifyResource } from '../api/client';
 import { SecretRow } from './SecretRow';
 import { AddSecretModal } from './AddSecretModal';
 import { ImportModal } from './ImportModal';
@@ -61,9 +61,30 @@ export function SecretsTab() {
   const [sbSyncResult, setSbSyncResult] = useState<string | null>(null);
   const [sbSyncing, setSbSyncing] = useState(false);
 
+  // Coolify connection state
+  const [cfStatus, setCfStatus] = useState<CoolifyStatus | null>(null);
+  const [cfStep, setCfStep] = useState<'idle' | 'creds' | 'pick'>('idle');
+  const [cfInstanceUrl, setCfInstanceUrl] = useState('');
+  const [cfToken, setCfToken] = useState('');
+  const [cfAccessId, setCfAccessId] = useState('');
+  const [cfAccessSecret, setCfAccessSecret] = useState('');
+  const [cfShowAccess, setCfShowAccess] = useState(false);
+  const [cfResources, setCfResources] = useState<CoolifyResource[]>([]);
+  const [cfSelectedUuid, setCfSelectedUuid] = useState('');
+  const [cfTargetEnv, setCfTargetEnv] = useState('prod');
+  const [cfSyncMode, setCfSyncMode] = useState<'merge' | 'overwrite'>('merge');
+  const [cfLoading, setCfLoading] = useState(false);
+  const [cfError, setCfError] = useState<string | null>(null);
+  const [cfSyncResult, setCfSyncResult] = useState<string | null>(null);
+  const [cfSyncing, setCfSyncing] = useState(false);
+  const [cfHelpOpen, setCfHelpOpen] = useState(false);
+
   useEffect(() => {
     if (currentProject) {
       api.supabase.status(currentProject.id).then(setSbStatus).catch(() => {});
+      api.coolify.status(currentProject.id).then(setCfStatus).catch(() => {});
+      // Default the target-env picker to the project's default environment.
+      setCfTargetEnv(currentProject.default_environment || 'prod');
     }
   }, [currentProject?.id]);
 
@@ -158,6 +179,109 @@ export function SecretsTab() {
       fetchSecrets();
     } catch (err: unknown) {
       setSbError(err instanceof Error ? err.message : 'Disconnect failed');
+    }
+  };
+
+  const cfCreds = () => ({
+    instanceUrl: cfInstanceUrl.trim(),
+    token: cfToken.trim(),
+    cfAccessId: cfAccessId.trim() || undefined,
+    cfAccessSecret: cfAccessSecret.trim() || undefined,
+  });
+
+  const resetCfFlow = () => {
+    setCfStep('idle');
+    setCfError(null);
+    setCfToken('');
+    setCfAccessId('');
+    setCfAccessSecret('');
+    setCfShowAccess(false);
+    setCfResources([]);
+    setCfSelectedUuid('');
+    setCfSyncMode('merge');
+  };
+
+  const handleCfFetchResources = async () => {
+    if (!cfInstanceUrl.trim() || !cfToken.trim()) return;
+    setCfLoading(true);
+    setCfError(null);
+    try {
+      const resources = await api.coolify.resources(cfCreds());
+      setCfResources(resources);
+      setCfSelectedUuid('');
+      setCfStep('pick');
+    } catch (err: unknown) {
+      setCfError(err instanceof Error ? err.message : 'Could not reach Coolify');
+    } finally {
+      setCfLoading(false);
+    }
+  };
+
+  const handleCfConnect = async () => {
+    if (!currentProject || !cfSelectedUuid) return;
+    const picked = cfResources.find((r) => r.uuid === cfSelectedUuid);
+    if (!picked) return;
+    setCfLoading(true);
+    setCfError(null);
+    try {
+      const result = await api.coolify.connect(currentProject.id, {
+        ...cfCreds(),
+        resourceType: picked.type,
+        resourceUuid: picked.uuid,
+        resourceName: picked.name,
+        targetEnvironment: cfTargetEnv,
+        syncMode: cfSyncMode,
+      });
+      setCfStatus({
+        connected: true,
+        instanceUrl: cfInstanceUrl.trim(),
+        resourceType: picked.type,
+        resourceName: picked.name,
+        targetEnvironment: cfTargetEnv,
+        syncMode: cfSyncMode,
+        lastSync: new Date().toISOString(),
+      });
+      setCfSyncResult(`Imported ${result.sync.updated} secrets`);
+      resetCfFlow();
+      fetchSecrets();
+    } catch (err: unknown) {
+      setCfError(err instanceof Error ? err.message : 'Connection failed');
+    } finally {
+      setCfLoading(false);
+    }
+  };
+
+  const handleCfSync = async () => {
+    if (!currentProject) return;
+    setCfSyncing(true);
+    setCfError(null);
+    setCfSyncResult(null);
+    try {
+      const result = await api.coolify.sync(currentProject.id);
+      setCfSyncResult(
+        `Updated ${result.updated}, ${result.unchanged} unchanged` +
+          (result.conflicts.length ? `, ${result.conflicts.length} conflicts` : '') +
+          (result.errors.length ? ` — ${result.errors[0]}` : '')
+      );
+      setCfStatus((prev) => (prev ? { ...prev, lastSync: new Date().toISOString() } : prev));
+      fetchSecrets();
+    } catch (err: unknown) {
+      setCfError(err instanceof Error ? err.message : 'Sync failed');
+    } finally {
+      setCfSyncing(false);
+    }
+  };
+
+  const handleCfDisconnect = async () => {
+    if (!currentProject) return;
+    setCfError(null);
+    try {
+      await api.coolify.disconnect(currentProject.id);
+      setCfStatus({ connected: false, instanceUrl: '', resourceType: '', resourceName: '', targetEnvironment: '', syncMode: '', lastSync: null });
+      setCfStep('idle');
+      fetchSecrets();
+    } catch (err: unknown) {
+      setCfError(err instanceof Error ? err.message : 'Disconnect failed');
     }
   };
 
@@ -551,6 +675,248 @@ export function SecretsTab() {
               </div>
             </div>
           ) : null}
+          </div>
+
+          {/* Coolify connector — self-hosted stacks */}
+          <div className="max-w-sm border border-brand-coolify/20 rounded-xl p-4 bg-brand-coolify/3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Server size={14} className="text-brand-coolify" />
+                <span className="text-[12px] font-semibold text-brand-coolify tracking-[0.05em] uppercase">
+                  Coolify
+                </span>
+              </div>
+              <button
+                type="button"
+                aria-label="Coolify sync help"
+                onClick={() => setCfHelpOpen((v) => !v)}
+                className="text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-sm"
+              >
+                <HelpCircle size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            {cfHelpOpen && (
+              <p className="text-[11px] text-text-muted leading-relaxed m-0 mb-3">
+                Pull env vars from a self-hosted Coolify service or application into this
+                project. Create a read API token in Coolify → Keys &amp; Tokens → API
+                tokens. If your instance is behind Cloudflare Access, add a service-token
+                Client Id / Secret, or an Access bypass for <span className="font-mono">/api/*</span>.
+                Values sync into the chosen environment; merge never deletes your own secrets.
+              </p>
+            )}
+
+            {cfStatus?.connected ? (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[14px] font-semibold text-text-primary min-w-0 truncate">
+                    {cfStatus.resourceName || 'Connected'}
+                  </span>
+                  <span className="text-[10px] font-semibold text-brand-coolify bg-brand-coolify/10 border border-brand-coolify/25 rounded-md px-1.5 py-0.5 whitespace-nowrap">
+                    {cfStatus.resourceType}
+                  </span>
+                  <span className="text-[10px] font-semibold text-text-muted bg-surface border border-border-default rounded-md px-1.5 py-0.5 whitespace-nowrap">
+                    → {cfStatus.targetEnvironment} · {cfStatus.syncMode}
+                  </span>
+                </div>
+                <p className="text-[12px] text-text-muted m-0">
+                  {cfStatus.lastSync
+                    ? `Last synced ${new Date(cfStatus.lastSync + (cfStatus.lastSync.endsWith('Z') ? '' : 'Z')).toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true, month: 'short', day: 'numeric' })}`
+                    : 'Never synced'}
+                </p>
+                {cfSyncResult && <p className="text-[12px] text-text-secondary m-0">{cfSyncResult}</p>}
+                {cfError && <p className="text-[12px] text-danger m-0">{cfError}</p>}
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={cfSyncing}
+                    onClick={handleCfSync}
+                    className={cn(
+                      'h-8 px-3 text-[12px] font-semibold text-brand-coolify bg-transparent',
+                      'border border-brand-coolify/30 rounded-lg cursor-pointer',
+                      'flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150',
+                      'hover:bg-brand-coolify/8 disabled:opacity-60 disabled:pointer-events-none',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                    )}
+                  >
+                    <RefreshCw size={12} className={cfSyncing ? 'spin' : undefined} />
+                    {cfSyncing ? 'Syncing…' : 'Sync Now'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCfDisconnect}
+                    className={cn(
+                      'h-8 px-3 text-[12px] font-semibold text-text-muted bg-transparent',
+                      'border border-border-default rounded-lg cursor-pointer',
+                      'flex items-center gap-1.5 whitespace-nowrap transition-colors duration-150',
+                      'hover:bg-danger/8 hover:text-danger',
+                      'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                    )}
+                  >
+                    <Unlink size={12} />
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : cfStep === 'idle' ? (
+              <div>
+                <p className="text-[12px] text-text-muted m-0 mb-3 leading-relaxed">
+                  Sync env vars from a self-hosted Coolify stack.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCfStep('creds')}
+                  className={cn(
+                    'h-8 px-3 text-[12px] font-semibold text-brand-coolify bg-transparent',
+                    'border border-brand-coolify/30 rounded-lg cursor-pointer',
+                    'flex items-center gap-1.5 transition-colors duration-150 hover:bg-brand-coolify/8',
+                    'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                  )}
+                >
+                  <Server size={12} />
+                  Connect to Coolify
+                </button>
+              </div>
+            ) : cfStep === 'creds' ? (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                    Instance URL
+                  </label>
+                  <Input
+                    type="text"
+                    value={cfInstanceUrl}
+                    onChange={(e) => setCfInstanceUrl(e.target.value)}
+                    placeholder="https://coolify.example.com"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                    API Token
+                  </label>
+                  <Input
+                    type="password"
+                    revealable
+                    value={cfToken}
+                    onChange={(e) => setCfToken(e.target.value)}
+                    placeholder="Coolify API token"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && cfInstanceUrl.trim() && cfToken.trim()) handleCfFetchResources(); }}
+                  />
+                  <p className="text-[11px] text-text-muted mt-1.5 mb-0">
+                    Coolify → Keys &amp; Tokens → API tokens (read scope is enough).
+                  </p>
+                </div>
+
+                {!cfShowAccess ? (
+                  <button
+                    type="button"
+                    onClick={() => setCfShowAccess(true)}
+                    className="text-[11px] font-semibold text-brand-coolify hover:underline self-start bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    + Add Cloudflare Access service token
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-abyss p-3">
+                    <label className="block text-[11px] font-semibold text-text-muted tracking-[0.05em] uppercase">
+                      Cloudflare Access (optional)
+                    </label>
+                    <Input type="text" value={cfAccessId} onChange={(e) => setCfAccessId(e.target.value)} placeholder="CF-Access-Client-Id" />
+                    <Input type="password" revealable value={cfAccessSecret} onChange={(e) => setCfAccessSecret(e.target.value)} placeholder="CF-Access-Client-Secret" />
+                  </div>
+                )}
+
+                {cfError && <p className="text-[12px] text-danger m-0">{cfError}</p>}
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={resetCfFlow}>Cancel</Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={cfLoading || !cfInstanceUrl.trim() || !cfToken.trim()}
+                    loading={cfLoading}
+                    onClick={handleCfFetchResources}
+                    className="bg-brand-coolify hover:bg-brand-coolify/90 border-transparent"
+                  >
+                    {cfLoading ? 'Connecting…' : 'Connect'}
+                  </Button>
+                </div>
+              </div>
+            ) : cfStep === 'pick' ? (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                    Resource
+                  </label>
+                  {cfResources.length === 0 ? (
+                    <p className="text-[12px] text-text-muted m-0">No services or applications found.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 max-h-50 overflow-y-auto">
+                      {cfResources.map((r) => (
+                        <button
+                          key={r.uuid}
+                          type="button"
+                          onClick={() => setCfSelectedUuid(r.uuid)}
+                          className={cn(
+                            'flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer text-left w-full transition-colors duration-150',
+                            'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2',
+                            cfSelectedUuid === r.uuid
+                              ? 'bg-brand-coolify/8 border border-brand-coolify/40'
+                              : 'bg-abyss border border-border-default hover:bg-surface-hover',
+                          )}
+                        >
+                          <Server size={14} className={cfSelectedUuid === r.uuid ? 'text-brand-coolify' : 'text-text-muted'} />
+                          <div className="flex-1 min-w-0">
+                            <div className={cn('text-[13px] font-semibold truncate', cfSelectedUuid === r.uuid ? 'text-text-primary' : 'text-text-secondary')}>
+                              {r.name}
+                            </div>
+                            <div className="text-[11px] text-text-muted font-mono truncate">{r.type} · {r.uuid}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {cfSelectedUuid && (
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                        Target env
+                      </label>
+                      <Select value={cfTargetEnv} onChange={(e) => setCfTargetEnv(e.target.value)}>
+                        {(currentProject?.environments ?? []).map((env) => (
+                          <option key={env.id} value={env.slug}>{env.name}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[12px] font-semibold text-text-secondary tracking-[0.05em] uppercase mb-1.5">
+                        Sync mode
+                      </label>
+                      <Select value={cfSyncMode} onChange={(e) => setCfSyncMode(e.target.value as 'merge' | 'overwrite')}>
+                        <option value="merge">Merge</option>
+                        <option value="overwrite">Overwrite</option>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {cfError && <p className="text-[12px] text-danger m-0">{cfError}</p>}
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setCfStep('creds'); setCfError(null); }}>Back</Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={cfLoading || !cfSelectedUuid}
+                    loading={cfLoading}
+                    onClick={handleCfConnect}
+                    className="bg-brand-coolify hover:bg-brand-coolify/90 border-transparent"
+                  >
+                    {cfLoading ? 'Connecting…' : 'Connect & Sync'}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </motion.div>

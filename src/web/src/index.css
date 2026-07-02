@@ -41,6 +41,7 @@
 
   /* Brand colors (promoted from inline hex so they live in one place) */
   --color-brand-supabase: #3ecf8e;
+  --color-brand-coolify: #8b5cf6;
 
   /* Elevation scale */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
