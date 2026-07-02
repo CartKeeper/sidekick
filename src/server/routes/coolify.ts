@@ -187,7 +187,7 @@ export async function syncProject(
 
   // Overwrite: prune coolify-managed keys in this env that are no longer present.
   if (mode === 'overwrite') {
-    const incoming = new Set(Object.keys(pairs));
+    const incoming = new Set(Object.entries(pairs).filter(([, v]) => v).map(([k]) => k));
     const existing = db
       .prepare("SELECT id, key FROM secrets WHERE environment_id = ? AND source = 'coolify'")
       .all(env.id) as any[];

@@ -112,6 +112,26 @@ describe('syncProject', () => {
     const reveal = await ctx.app.inject({ method: 'GET', url: `/api/environments/${envId}/secrets?reveal=true` });
     expect(reveal.json().find((s: any) => s.key === 'SHARED').value).toBe('mine');
   });
+
+  it('overwrite mode prunes coolify keys that go empty upstream', async () => {
+    connectCoolify(ctx, projectId, { syncMode: 'overwrite' });
+    const vaultKey = ctx.app.vault.requireKey();
+    // First sync: GOES_EMPTY has value 'v1', STAYS has 's'.
+    stubEnvs([{ key: 'GOES_EMPTY', value: 'v1' }, { key: 'STAYS', value: 's' }]);
+    await syncProject(ctx.app.db, vaultKey, projectId);
+
+    let keys = (ctx.app.db.prepare('SELECT key FROM secrets WHERE environment_id = ?').all(envId) as any[]).map((r) => r.key);
+    expect(keys).toContain('GOES_EMPTY');
+    expect(keys).toContain('STAYS');
+
+    // Second sync: GOES_EMPTY becomes empty, STAYS unchanged.
+    stubEnvs([{ key: 'GOES_EMPTY', value: '' }, { key: 'STAYS', value: 's' }]);
+    await syncProject(ctx.app.db, vaultKey, projectId);
+
+    keys = (ctx.app.db.prepare('SELECT key FROM secrets WHERE environment_id = ?').all(envId) as any[]).map((r) => r.key);
+    expect(keys).not.toContain('GOES_EMPTY');
+    expect(keys).toContain('STAYS');
+  });
 });
 
 describe('coolify HTTP routes', () => {
