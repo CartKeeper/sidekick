@@ -101,4 +101,15 @@ describe('syncProject', () => {
     expect(keys).toContain('MINE');
     expect(keys).not.toContain('STALE');
   });
+
+  it('overwrite mode never overwrites a source=manual secret (records conflict)', async () => {
+    connectCoolify(ctx, projectId, { syncMode: 'overwrite' });
+    await ctx.app.inject({ method: 'POST', url: `/api/environments/${envId}/secrets`, payload: { key: 'SHARED', value: 'mine' } });
+    stubEnvs([{ key: 'SHARED', value: 'theirs' }]);
+    const vaultKey = ctx.app.vault.requireKey();
+    const result = await syncProject(ctx.app.db, vaultKey, projectId);
+    expect(result.conflicts).toContain('SHARED');
+    const reveal = await ctx.app.inject({ method: 'GET', url: `/api/environments/${envId}/secrets?reveal=true` });
+    expect(reveal.json().find((s: any) => s.key === 'SHARED').value).toBe('mine');
+  });
 });
