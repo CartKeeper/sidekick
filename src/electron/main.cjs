@@ -89,6 +89,25 @@ function writePrefs(patch) {
   return next;
 }
 
+// ─── Launch at Login ─────────────────────────────────────────────────────────
+
+// Whether Sidekick should start at login. Defaults to on (the user wants it
+// loading "like a startup"); persisted so the tray toggle survives restarts.
+function isOpenAtLoginEnabled() {
+  const prefs = readPrefs();
+  return prefs.openAtLogin !== false;
+}
+
+// Apply the saved open-at-login preference to the OS login-items list.
+function syncLoginItem() {
+  if (process.platform !== 'darwin' && process.platform !== 'win32') return;
+  try {
+    app.setLoginItemSettings({ openAtLogin: isOpenAtLoginEnabled() });
+  } catch (e) {
+    console.error('Failed to sync login item:', e);
+  }
+}
+
 // ─── Dock Geometry ───────────────────────────────────────────────────────────
 
 function resolveDockDisplay() {
@@ -373,6 +392,16 @@ function createTray() {
             rebuildMenu();
           },
         },
+        {
+          label: 'Open at Login',
+          type: 'checkbox',
+          checked: isOpenAtLoginEnabled(),
+          click: (item) => {
+            writePrefs({ openAtLogin: item.checked });
+            syncLoginItem();
+            rebuildMenu();
+          },
+        },
         { type: 'separator' },
         { label: 'Lock Vault', click: sendLockVault },
         { label: 'Quit Sidekick', click: () => app.quit() },
@@ -541,16 +570,21 @@ if (!gotTheLock) {
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
-  // Replace the default Electron dock icon with the Sidekick logo. Packaged
-  // builds get their icon from the .icns bundle; this covers the dev run.
-  if (process.platform === 'darwin' && app.dock) {
-    const dockIcon = path.join(__dirname, '..', '..', 'assets', 'icon_1024.png');
+  // Run as a background / menu-bar app: no icon in the macOS Dock (bottom bar)
+  // and no entry in the Cmd-Tab app switcher. Sidekick's identity lives in the
+  // menu-bar tray icon (top-right) instead. The packaged build also sets
+  // LSUIElement in Info.plist so the Dock icon never flashes on launch.
+  if (process.platform === 'darwin') {
     try {
-      if (fs.existsSync(dockIcon)) app.dock.setIcon(dockIcon);
+      app.setActivationPolicy('accessory');
     } catch (e) {
-      console.error('Failed to set dock icon:', e);
+      console.error('Failed to set accessory activation policy:', e);
     }
   }
+
+  // Launch Sidekick automatically at login so it's always running in the
+  // background. Controlled via the tray menu's "Open at Login" toggle.
+  syncLoginItem();
 
   setupIPC();
   loadAutoLockFromPrefs();

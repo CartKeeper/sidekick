@@ -6,6 +6,7 @@ import { ProjectDetail } from './ProjectDetail';
 import { TerminalPanel } from './TerminalPanel';
 import { ProjectTerminal } from './ProjectTerminal';
 import { PreferencesPanel } from './PreferencesModal';
+import { PortsTab } from './PortsTab';
 
 interface DockPanelProps {
   activeTab: string;
@@ -96,6 +97,10 @@ export function DockPanel({ activeTab }: DockPanelProps) {
     >
       {activeTab === 'main' ? (
         <MainPanelContent />
+      ) : activeTab === 'ports' ? (
+        <div className="no-drag p-4 h-full overflow-hidden">
+          <PortsTab />
+        </div>
       ) : activeTab === 'preferences' ? (
         <PreferencesPanel />
       ) : isProjectTab && projectId ? (

@@ -27,7 +27,10 @@
       "category": "public.app-category.developer-tools",
       "target": "dir",
       "icon": "assets/icon.icns",
-      "identity": null
+      "identity": null,
+      "extendInfo": {
+        "LSUIElement": true
+      }
     },
     "files": [
       "src/**/*",
