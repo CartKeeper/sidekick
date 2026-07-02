@@ -108,3 +108,137 @@ export function detectType(key: string): string {
   if (k.includes('URL') || k.includes('URI') || k.includes('DATABASE')) return 'connection';
   return 'generic';
 }
+
+/** Rebuild decrypted Coolify creds from a project row. */
+export function credsFromProject(project: any, vaultKey: Buffer): CoolifyCreds {
+  const token = decrypt(
+    {
+      ciphertext: project.coolify_api_token_encrypted,
+      iv: project.coolify_api_token_iv,
+      authTag: project.coolify_api_token_auth_tag,
+    },
+    vaultKey
+  );
+  let cfAccessSecret: string | undefined;
+  if (project.coolify_cf_access_secret_encrypted) {
+    cfAccessSecret = decrypt(
+      {
+        ciphertext: project.coolify_cf_access_secret_encrypted,
+        iv: project.coolify_cf_access_secret_iv,
+        authTag: project.coolify_cf_access_secret_auth_tag,
+      },
+      vaultKey
+    );
+  }
+  return {
+    instanceUrl: project.coolify_instance_url,
+    token,
+    cfAccessId: project.coolify_cf_access_client_id || undefined,
+    cfAccessSecret,
+  };
+}
+
+/**
+ * Pull the connected Coolify resource's env vars and upsert them into the
+ * project's target environment as secrets tagged source='coolify'.
+ * Manual secrets are never overwritten; overwrite mode only prunes stale
+ * coolify-managed keys.
+ */
+export async function syncProject(
+  db: any,
+  vaultKey: Buffer,
+  projectId: string
+): Promise<CoolifySyncResult> {
+  const result: CoolifySyncResult = {
+    synced: 0, updated: 0, unchanged: 0, skippedEmpty: 0, conflicts: [], errors: [],
+  };
+
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any;
+  if (!project) {
+    result.errors.push('Project not found');
+    return result;
+  }
+  if (!project.coolify_instance_url || !project.coolify_api_token_encrypted || !project.coolify_resource_uuid) {
+    result.errors.push('Project is not connected to Coolify');
+    return result;
+  }
+
+  const targetSlug = project.coolify_target_environment || 'prod';
+  const mode = project.coolify_sync_mode === 'overwrite' ? 'overwrite' : 'merge';
+
+  // Resolve the target environment; fall back to the first env if the named one
+  // does not exist so a sync never silently writes nothing.
+  const env =
+    (db.prepare('SELECT * FROM environments WHERE project_id = ? AND slug = ?').get(projectId, targetSlug) as any) ??
+    (db.prepare('SELECT * FROM environments WHERE project_id = ? ORDER BY sort_order LIMIT 1').get(projectId) as any);
+  if (!env) {
+    result.errors.push(`No environment '${targetSlug}' found for project`);
+    return result;
+  }
+
+  const creds = credsFromProject(project, vaultKey);
+  let pairs: Record<string, string>;
+  try {
+    pairs = await fetchCoolifyEnv(creds, project.coolify_resource_type, project.coolify_resource_uuid);
+  } catch (err: any) {
+    result.errors.push(err.message);
+    return result;
+  }
+
+  // Overwrite: prune coolify-managed keys in this env that are no longer present.
+  if (mode === 'overwrite') {
+    const incoming = new Set(Object.keys(pairs));
+    const existing = db
+      .prepare("SELECT id, key FROM secrets WHERE environment_id = ? AND source = 'coolify'")
+      .all(env.id) as any[];
+    for (const row of existing) {
+      if (!incoming.has(row.key)) {
+        db.prepare('DELETE FROM secrets WHERE id = ?').run(row.id);
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(pairs)) {
+    if (!value) {
+      result.skippedEmpty++;
+      continue;
+    }
+    const existing = db
+      .prepare('SELECT id, value_encrypted, iv, auth_tag, source FROM secrets WHERE environment_id = ? AND key = ?')
+      .get(env.id, key) as any;
+
+    if (existing) {
+      if (existing.source === 'manual') {
+        if (!result.conflicts.includes(key)) result.conflicts.push(key);
+        continue;
+      }
+      try {
+        const current = decrypt(
+          { ciphertext: existing.value_encrypted, iv: existing.iv, authTag: existing.auth_tag },
+          vaultKey
+        );
+        if (current === value) {
+          result.unchanged++;
+          continue;
+        }
+      } catch {
+        // Can't decrypt — fall through and overwrite.
+      }
+      const enc = encrypt(value, vaultKey);
+      db.prepare(
+        "UPDATE secrets SET value_encrypted = ?, iv = ?, auth_tag = ?, source = 'coolify', updated_at = datetime('now') WHERE id = ?"
+      ).run(enc.ciphertext, enc.iv, enc.authTag, existing.id);
+      result.updated++;
+    } else {
+      const enc = encrypt(value, vaultKey);
+      db.prepare(
+        "INSERT INTO secrets (id, environment_id, key, value_encrypted, iv, auth_tag, type, source) VALUES (?, ?, ?, ?, ?, ?, ?, 'coolify')"
+      ).run(newId(), env.id, key, enc.ciphertext, enc.iv, enc.authTag, detectType(key));
+      result.updated++;
+    }
+  }
+
+  result.synced = result.updated + result.unchanged;
+  db.prepare("UPDATE projects SET coolify_last_sync = datetime('now') WHERE id = ?").run(projectId);
+  return result;
+}
