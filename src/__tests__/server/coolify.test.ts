@@ -113,3 +113,75 @@ describe('syncProject', () => {
     expect(reveal.json().find((s: any) => s.key === 'SHARED').value).toBe('mine');
   });
 });
+
+describe('coolify HTTP routes', () => {
+  it('POST /coolify/connect validates, persists, and runs an initial sync', async () => {
+    // /applications + /services (resources not used here) then /services/:uuid/envs
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => [{ key: 'DB_PASSWORD', value: 'pw' }],
+      text: async () => '',
+    }));
+
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/coolify/connect/${projectId}`,
+      payload: {
+        instanceUrl: 'https://coolify.example.com',
+        token: 'cool_tok',
+        resourceType: 'service',
+        resourceUuid: 'svc-1',
+        resourceName: 'db',
+        targetEnvironment: 'dev',
+        syncMode: 'merge',
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sync.updated).toBe(1);
+
+    // Token is stored encrypted, not plaintext.
+    const row = ctx.app.db.prepare('SELECT coolify_api_token_encrypted FROM projects WHERE id = ?').get(projectId) as any;
+    expect(row.coolify_api_token_encrypted).toBeTruthy();
+    expect(row.coolify_api_token_encrypted).not.toContain('cool_tok');
+  });
+
+  it('GET /coolify/status reports connected after connect', async () => {
+    connectCoolify(ctx, projectId);
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/status/${projectId}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().connected).toBe(true);
+    expect(res.json().resourceName).toBe('db');
+  });
+
+  it('POST /coolify/disconnect clears config and demotes secrets to manual', async () => {
+    connectCoolify(ctx, projectId);
+    stubEnvs([{ key: 'FROM_COOLIFY', value: 'v' }]);
+    await ctx.app.inject({ method: 'POST', url: `/api/coolify/sync/${projectId}` });
+
+    const res = await ctx.app.inject({ method: 'POST', url: `/api/coolify/disconnect/${projectId}` });
+    expect(res.statusCode).toBe(200);
+
+    const proj = ctx.app.db.prepare('SELECT coolify_instance_url, coolify_api_token_encrypted FROM projects WHERE id = ?').get(projectId) as any;
+    expect(proj.coolify_api_token_encrypted).toBeNull();
+    const sec = ctx.app.db.prepare('SELECT source FROM secrets WHERE environment_id = ? AND key = ?').get(envId, 'FROM_COOLIFY') as any;
+    expect(sec.source).toBe('manual');
+  });
+
+  it('routes are guarded by the vault lock', async () => {
+    await ctx.app.inject({ method: 'POST', url: '/api/auth/lock' });
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/status/${projectId}` });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('POST /coolify/sync returns 400 (not 500) when the stored token cannot be decrypted', async () => {
+    connectCoolify(ctx, projectId);
+    // Corrupt the stored ciphertext so decrypt() throws (simulates a rotated/stale vault key).
+    ctx.app.db.prepare(
+      "UPDATE projects SET coolify_api_token_encrypted = 'deadbeef' || coolify_api_token_encrypted WHERE id = ?"
+    ).run(projectId);
+
+    const res = await ctx.app.inject({ method: 'POST', url: `/api/coolify/sync/${projectId}` });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/vault key may have changed/i);
+  });
+});
