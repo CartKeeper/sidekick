@@ -89,12 +89,49 @@ export async function fetchCoolifyEnv(
   const path =
     resourceType === 'service' ? `/services/${uuid}/envs` : `/applications/${uuid}/envs`;
   const envs = await coolifyFetch<CoolifyEnv[]>(creds, path);
-  const out: Record<string, string> = {};
+  const raw: Record<string, string> = {};
   for (const e of envs ?? []) {
     if (!e.key) continue;
     const v = (e.real_value && e.real_value.length ? e.real_value : e.value) ?? '';
-    out[e.key] = v;
+    raw[e.key] = v;
   }
+  return resolveEnvRefs(raw);
+}
+
+const ENV_REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-([^}]*))?\}/g;
+
+/**
+ * Coolify does not always resolve its `${NAME}` magic variables in `real_value`
+ * (e.g. ANON_KEY → `${SERVICE_SUPABASEANON_KEY}`), but the referenced keys are
+ * in the same payload. Substitute them, honouring `${NAME:-default}`. A value
+ * whose reference cannot be resolved (missing or circular) becomes '' so the
+ * sync skips it rather than vaulting the literal reference.
+ */
+export function resolveEnvRefs(raw: Record<string, string>): Record<string, string> {
+  const done = new Map<string, string | null>();
+
+  const resolve = (key: string, visiting: Set<string>): string | null => {
+    if (done.has(key)) return done.get(key)!;
+    if (visiting.has(key)) return null;
+    visiting.add(key);
+    let failed = false;
+    const value = raw[key].replace(ENV_REF, (_m, name: string, fallback?: string) => {
+      const inner = name in raw ? resolve(name, visiting) : null;
+      if ((inner === null || inner === '') && fallback !== undefined) return fallback;
+      if (inner === null) {
+        failed = true;
+        return '';
+      }
+      return inner;
+    });
+    visiting.delete(key);
+    const result = failed ? null : value;
+    done.set(key, result);
+    return result;
+  };
+
+  const out: Record<string, string> = {};
+  for (const key of Object.keys(raw)) out[key] = resolve(key, new Set()) ?? '';
   return out;
 }
 
