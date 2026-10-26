@@ -189,6 +189,43 @@ describe('coolify HTTP routes', () => {
     expect(sec.source).toBe('manual');
   });
 
+  it('GET /coolify/defaults pre-fills url, token and service id from the project secrets', async () => {
+    for (const [key, value] of [
+      ['OVH_COOLIFY_URL', 'https://coolify-ovh.example.com'],
+      ['OVH_COOLIFY_API_TOKEN', '3|tok'],
+      ['OVH_COOLIFY_APP_UUID', 'app-1'],
+      ['OVH_COOLIFY_SUPABASE_SERVICE_ID', 'svc-1'],
+    ]) {
+      await ctx.app.inject({ method: 'POST', url: `/api/environments/${envId}/secrets`, payload: { key, value } });
+    }
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/defaults/${projectId}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      instanceUrl: 'https://coolify-ovh.example.com',
+      token: '3|tok',
+      resourceUuid: 'svc-1',
+      environment: 'dev',
+    });
+  });
+
+  it('GET /coolify/defaults falls back to the app uuid when there is no Supabase service', async () => {
+    for (const [key, value] of [
+      ['OVH_COOLIFY_URL', 'https://coolify-ovh.example.com'],
+      ['OVH_COOLIFY_API_TOKEN', '3|tok'],
+      ['OVH_COOLIFY_APP_UUID', 'app-1'],
+    ]) {
+      await ctx.app.inject({ method: 'POST', url: `/api/environments/${envId}/secrets`, payload: { key, value } });
+    }
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/defaults/${projectId}` });
+    expect(res.json().resourceUuid).toBe('app-1');
+  });
+
+  it('GET /coolify/defaults returns blanks when the project has no Coolify secrets', async () => {
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/defaults/${projectId}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ instanceUrl: '', token: '', resourceUuid: '', environment: '' });
+  });
+
   it('routes are guarded by the vault lock', async () => {
     await ctx.app.inject({ method: 'POST', url: '/api/auth/lock' });
     const res = await ctx.app.inject({ method: 'GET', url: `/api/coolify/status/${projectId}` });

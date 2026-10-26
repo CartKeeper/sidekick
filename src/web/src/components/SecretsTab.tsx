@@ -71,6 +71,7 @@ export function SecretsTab() {
   const [cfShowAccess, setCfShowAccess] = useState(false);
   const [cfResources, setCfResources] = useState<CoolifyResource[]>([]);
   const [cfSelectedUuid, setCfSelectedUuid] = useState('');
+  const [cfPreferredUuid, setCfPreferredUuid] = useState('');
   const [cfTargetEnv, setCfTargetEnv] = useState('prod');
   const [cfSyncMode, setCfSyncMode] = useState<'merge' | 'overwrite'>('merge');
   const [cfLoading, setCfLoading] = useState(false);
@@ -198,7 +199,24 @@ export function SecretsTab() {
     setCfShowAccess(false);
     setCfResources([]);
     setCfSelectedUuid('');
+    setCfPreferredUuid('');
     setCfSyncMode('merge');
+  };
+
+  // Open the connect form pre-filled from the project's own OVH_COOLIFY_* secrets.
+  const handleCfStart = async () => {
+    setCfStep('creds');
+    if (!currentProject) return;
+    try {
+      const d = await api.coolify.defaults(currentProject.id);
+      if (!d.token) return;
+      setCfInstanceUrl((prev) => prev || d.instanceUrl);
+      setCfToken((prev) => prev || d.token);
+      setCfPreferredUuid(d.resourceUuid);
+      setCfTargetEnv(d.environment);
+    } catch {
+      // No defaults — the form stays blank for manual entry.
+    }
   };
 
   const handleCfFetchResources = async () => {
@@ -208,7 +226,7 @@ export function SecretsTab() {
     try {
       const resources = await api.coolify.resources(cfCreds());
       setCfResources(resources);
-      setCfSelectedUuid('');
+      setCfSelectedUuid(resources.some((r) => r.uuid === cfPreferredUuid) ? cfPreferredUuid : '');
       setCfStep('pick');
     } catch (err: unknown) {
       setCfError(err instanceof Error ? err.message : 'Could not reach Coolify');
@@ -765,7 +783,7 @@ export function SecretsTab() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setCfStep('creds')}
+                  onClick={handleCfStart}
                   className={cn(
                     'h-8 px-3 text-[12px] font-semibold text-brand-coolify bg-transparent',
                     'border border-brand-coolify/30 rounded-lg cursor-pointer',

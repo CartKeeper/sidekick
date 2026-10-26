@@ -383,6 +383,45 @@ export async function coolifyRoutes(app: FastifyInstance) {
     return result;
   });
 
+  // GET /coolify/defaults/:projectId — pre-fill values for the connect form, read
+  // from the project's own OVH_COOLIFY_* secrets. Checks `dev` first, then the
+  // project's other environments; returns blanks when none are found.
+  app.get<{ Params: { projectId: string } }>('/coolify/defaults/:projectId', async (req, reply) => {
+    const project = app.db.prepare('SELECT id, name FROM projects WHERE id = ?').get(req.params.projectId) as any;
+    if (!project) return reply.status(404).send({ error: 'Project not found' });
+
+    const envs = app.db.prepare(
+      "SELECT id, slug FROM environments WHERE project_id = ? ORDER BY slug = 'dev' DESC, sort_order"
+    ).all(req.params.projectId) as any[];
+    const vaultKey = app.vault.requireKey();
+
+    for (const env of envs) {
+      const rows = app.db.prepare(
+        `SELECT id, key, value_encrypted, iv, auth_tag FROM secrets WHERE environment_id = ? AND key IN
+          ('OVH_COOLIFY_URL', 'OVH_COOLIFY_API_TOKEN', 'OVH_COOLIFY_SUPABASE_SERVICE_ID', 'OVH_COOLIFY_APP_UUID')`
+      ).all(env.id) as any[];
+      const vals: Record<string, string> = {};
+      for (const r of rows) {
+        try {
+          vals[r.key] = decrypt({ ciphertext: r.value_encrypted, iv: r.iv, authTag: r.auth_tag }, vaultKey);
+        } catch {
+          // Undecryptable value — treat as absent.
+        }
+      }
+      if (!vals.OVH_COOLIFY_API_TOKEN) continue;
+
+      const tokenRow = rows.find((r) => r.key === 'OVH_COOLIFY_API_TOKEN');
+      logAudit(app.db, 'accessed', 'secret', tokenRow.id, 'OVH_COOLIFY_API_TOKEN', { via: 'coolify_defaults' });
+      return {
+        instanceUrl: vals.OVH_COOLIFY_URL ?? '',
+        token: vals.OVH_COOLIFY_API_TOKEN,
+        resourceUuid: vals.OVH_COOLIFY_SUPABASE_SERVICE_ID || vals.OVH_COOLIFY_APP_UUID || '',
+        environment: env.slug,
+      };
+    }
+    return { instanceUrl: '', token: '', resourceUuid: '', environment: '' };
+  });
+
   // GET /coolify/status/:projectId — connection status (no secret values).
   app.get<{ Params: { projectId: string } }>('/coolify/status/:projectId', async (req, reply) => {
     const project = app.db.prepare(
