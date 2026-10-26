@@ -106,6 +106,13 @@ export interface CoolifyStatus {
   lastSync: string | null;
 }
 
+export interface CoolifyDefaults {
+  instanceUrl: string;
+  token: string;
+  resourceUuid: string;
+  environment: string;
+}
+
 export interface CoolifyResource {
   type: 'service' | 'application';
   uuid: string;
@@ -279,6 +286,8 @@ export const api = {
       post<CoolifySyncResult>(`/coolify/sync/${projectId}`),
     status: (projectId: string) =>
       get<CoolifyStatus>(`/coolify/status/${projectId}`),
+    defaults: (projectId: string) =>
+      get<CoolifyDefaults>(`/coolify/defaults/${projectId}`),
     disconnect: (projectId: string) =>
       post<{ success: boolean }>(`/coolify/disconnect/${projectId}`),
   },

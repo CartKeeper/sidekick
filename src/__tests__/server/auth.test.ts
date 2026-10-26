@@ -1,6 +1,7 @@
 // src/__tests__/server/auth.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestApp, type TestContext } from '../helpers/server.js';
+import { encrypt, decrypt } from '../../core/crypto.js';
 
 let ctx: TestContext;
 
@@ -161,6 +162,44 @@ describe('POST /api/auth/change-password', () => {
     });
     const secrets = secretsRes.json();
     expect(secrets[0].value).toBe('secret-123');
+  });
+
+  it('re-encrypts the Supabase and Coolify connection tokens stored on projects', async () => {
+    await ctx.app.inject({ method: 'POST', url: '/api/auth/setup', payload: { password: 'old-pw', enableKeychain: false } });
+    await ctx.app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { password: 'old-pw' } });
+    const project = (await ctx.app.inject({ method: 'POST', url: '/api/projects', payload: { name: 'Connected' } })).json();
+
+    const oldKey = ctx.app.vault.requireKey();
+    const sb = encrypt('sb-token', oldKey);
+    const cool = encrypt('cool-token', oldKey);
+    const access = encrypt('access-secret', oldKey);
+    ctx.app.db.prepare(
+      `UPDATE projects SET
+        supabase_token_encrypted = ?, supabase_token_iv = ?, supabase_token_auth_tag = ?,
+        coolify_api_token_encrypted = ?, coolify_api_token_iv = ?, coolify_api_token_auth_tag = ?,
+        coolify_cf_access_secret_encrypted = ?, coolify_cf_access_secret_iv = ?, coolify_cf_access_secret_auth_tag = ?
+      WHERE id = ?`
+    ).run(sb.ciphertext, sb.iv, sb.authTag, cool.ciphertext, cool.iv, cool.authTag,
+      access.ciphertext, access.iv, access.authTag, project.id);
+
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      payload: { currentPassword: 'old-pw', newPassword: 'new-pw' },
+    });
+    expect(res.statusCode).toBe(200);
+
+    await ctx.app.inject({ method: 'POST', url: '/api/auth/lock' });
+    await ctx.app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { password: 'new-pw' } });
+    const newKey = ctx.app.vault.requireKey();
+    const row = ctx.app.db.prepare('SELECT * FROM projects WHERE id = ?').get(project.id) as any;
+    const open = (prefix: string) => decrypt(
+      { ciphertext: row[`${prefix}_encrypted`], iv: row[`${prefix}_iv`], authTag: row[`${prefix}_auth_tag`] },
+      newKey
+    );
+    expect(open('supabase_token')).toBe('sb-token');
+    expect(open('coolify_api_token')).toBe('cool-token');
+    expect(open('coolify_cf_access_secret')).toBe('access-secret');
   });
 
   it('rejects if current password is wrong', async () => {

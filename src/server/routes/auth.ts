@@ -12,6 +12,9 @@ import {
 } from '../../core/crypto.js';
 import { storeInKeychain } from '../../core/keychain.js';
 
+/** Encrypted token column groups on `projects` (`<prefix>_encrypted/_iv/_auth_tag`). */
+const PROJECT_TOKEN_COLUMNS = ['supabase_token', 'coolify_api_token', 'coolify_cf_access_secret'] as const;
+
 export async function authRoutes(app: FastifyInstance) {
   app.get('/status', async () => {
     const hash = getConfig(app.db, 'password_hash');
@@ -107,6 +110,21 @@ export async function authRoutes(app: FastifyInstance) {
           );
           const encrypted = encrypt(plaintext, newKey);
           updateStmt.run(encrypted.ciphertext, encrypted.iv, encrypted.authTag, secret.id);
+        }
+
+        // Integration tokens stored on project rows are encrypted with the same key.
+        for (const prefix of PROJECT_TOKEN_COLUMNS) {
+          const rows = app.db
+            .prepare(`SELECT id, ${prefix}_encrypted AS c, ${prefix}_iv AS iv, ${prefix}_auth_tag AS tag FROM projects WHERE ${prefix}_encrypted IS NOT NULL`)
+            .all() as { id: string; c: string; iv: string; tag: string }[];
+          const update = app.db.prepare(
+            `UPDATE projects SET ${prefix}_encrypted = ?, ${prefix}_iv = ?, ${prefix}_auth_tag = ? WHERE id = ?`
+          );
+          for (const row of rows) {
+            const plaintext = decrypt({ ciphertext: row.c, iv: row.iv, authTag: row.tag }, oldKey);
+            const encrypted = encrypt(plaintext, newKey);
+            update.run(encrypted.ciphertext, encrypted.iv, encrypted.authTag, row.id);
+          }
         }
 
         setConfig(app.db, 'password_hash', newHash);

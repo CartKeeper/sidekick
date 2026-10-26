@@ -89,12 +89,55 @@ export async function fetchCoolifyEnv(
   const path =
     resourceType === 'service' ? `/services/${uuid}/envs` : `/applications/${uuid}/envs`;
   const envs = await coolifyFetch<CoolifyEnv[]>(creds, path);
-  const out: Record<string, string> = {};
+  const raw: Record<string, string> = {};
   for (const e of envs ?? []) {
     if (!e.key) continue;
     const v = (e.real_value && e.real_value.length ? e.real_value : e.value) ?? '';
-    out[e.key] = v;
+    raw[e.key] = stripOuterQuotes(v);
   }
+  return resolveEnvRefs(raw);
+}
+
+/** Compose YAML quoting (`ANON_KEY: '${X}'`) can survive into Coolify's stored value. */
+function stripOuterQuotes(v: string): string {
+  if (v.length >= 2 && (v[0] === "'" || v[0] === '"') && v[v.length - 1] === v[0]) return v.slice(1, -1);
+  return v;
+}
+
+const ENV_REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-([^}]*))?\}/g;
+
+/**
+ * Coolify does not always resolve its `${NAME}` magic variables in `real_value`
+ * (e.g. ANON_KEY → `${SERVICE_SUPABASEANON_KEY}`), but the referenced keys are
+ * in the same payload. Substitute them, honouring `${NAME:-default}`. A value
+ * whose reference cannot be resolved (missing or circular) becomes '' so the
+ * sync skips it rather than vaulting the literal reference.
+ */
+export function resolveEnvRefs(raw: Record<string, string>): Record<string, string> {
+  const done = new Map<string, string | null>();
+
+  const resolve = (key: string, visiting: Set<string>): string | null => {
+    if (done.has(key)) return done.get(key)!;
+    if (visiting.has(key)) return null;
+    visiting.add(key);
+    let failed = false;
+    const value = raw[key].replace(ENV_REF, (_m, name: string, fallback?: string) => {
+      const inner = name in raw ? resolve(name, visiting) : null;
+      if ((inner === null || inner === '') && fallback !== undefined) return fallback;
+      if (inner === null) {
+        failed = true;
+        return '';
+      }
+      return inner;
+    });
+    visiting.delete(key);
+    const result = failed ? null : value;
+    done.set(key, result);
+    return result;
+  };
+
+  const out: Record<string, string> = {};
+  for (const key of Object.keys(raw)) out[key] = resolve(key, new Set()) ?? '';
   return out;
 }
 
@@ -381,6 +424,45 @@ export async function coolifyRoutes(app: FastifyInstance) {
       updated: result.updated, unchanged: result.unchanged,
     });
     return result;
+  });
+
+  // GET /coolify/defaults/:projectId — pre-fill values for the connect form, read
+  // from the project's own OVH_COOLIFY_* secrets. Checks `dev` first, then the
+  // project's other environments; returns blanks when none are found.
+  app.get<{ Params: { projectId: string } }>('/coolify/defaults/:projectId', async (req, reply) => {
+    const project = app.db.prepare('SELECT id, name FROM projects WHERE id = ?').get(req.params.projectId) as any;
+    if (!project) return reply.status(404).send({ error: 'Project not found' });
+
+    const envs = app.db.prepare(
+      "SELECT id, slug FROM environments WHERE project_id = ? ORDER BY slug = 'dev' DESC, sort_order"
+    ).all(req.params.projectId) as any[];
+    const vaultKey = app.vault.requireKey();
+
+    for (const env of envs) {
+      const rows = app.db.prepare(
+        `SELECT id, key, value_encrypted, iv, auth_tag FROM secrets WHERE environment_id = ? AND key IN
+          ('OVH_COOLIFY_URL', 'OVH_COOLIFY_API_TOKEN', 'OVH_COOLIFY_SUPABASE_SERVICE_ID', 'OVH_COOLIFY_APP_UUID')`
+      ).all(env.id) as any[];
+      const vals: Record<string, string> = {};
+      for (const r of rows) {
+        try {
+          vals[r.key] = decrypt({ ciphertext: r.value_encrypted, iv: r.iv, authTag: r.auth_tag }, vaultKey);
+        } catch {
+          // Undecryptable value — treat as absent.
+        }
+      }
+      if (!vals.OVH_COOLIFY_API_TOKEN) continue;
+
+      const tokenRow = rows.find((r) => r.key === 'OVH_COOLIFY_API_TOKEN');
+      logAudit(app.db, 'accessed', 'secret', tokenRow.id, 'OVH_COOLIFY_API_TOKEN', { via: 'coolify_defaults' });
+      return {
+        instanceUrl: vals.OVH_COOLIFY_URL ?? '',
+        token: vals.OVH_COOLIFY_API_TOKEN,
+        resourceUuid: vals.OVH_COOLIFY_SUPABASE_SERVICE_ID || vals.OVH_COOLIFY_APP_UUID || '',
+        environment: env.slug,
+      };
+    }
+    return { instanceUrl: '', token: '', resourceUuid: '', environment: '' };
   });
 
   // GET /coolify/status/:projectId — connection status (no secret values).

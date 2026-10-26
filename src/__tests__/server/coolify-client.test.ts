@@ -87,6 +87,58 @@ describe('fetchCoolifyEnv', () => {
     expect(out).toEqual({ ANON: 'resolved-anon', PLAIN: 'plain-val', EMPTY: '' });
   });
 
+  it('resolves ${NAME} references from other keys in the same payload', async () => {
+    mockFetchOnce([
+      { key: 'ANON_KEY', value: '${SERVICE_SUPABASEANON_KEY}' },
+      { key: 'SERVICE_SUPABASEANON_KEY', value: 'real-anon' },
+      { key: 'PGRST_JWT_SECRET', value: '${SERVICE_PASSWORD_JWT}', real_value: '${SERVICE_PASSWORD_JWT}' },
+      { key: 'SERVICE_PASSWORD_JWT', value: 'jwt-secret' },
+    ]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out.ANON_KEY).toBe('real-anon');
+    expect(out.PGRST_JWT_SECRET).toBe('jwt-secret');
+  });
+
+  it('resolves references embedded in a longer value and chained references', async () => {
+    mockFetchOnce([
+      { key: 'DB_URL', value: 'postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres' },
+      { key: 'POSTGRES_PASSWORD', value: '${SERVICE_PASSWORD_POSTGRES}' },
+      { key: 'SERVICE_PASSWORD_POSTGRES', value: 'pg-pw' },
+    ]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out.DB_URL).toBe('postgres://postgres:pg-pw@db:5432/postgres');
+    expect(out.POSTGRES_PASSWORD).toBe('pg-pw');
+  });
+
+  it('strips one pair of surrounding quotes left over from compose YAML', async () => {
+    mockFetchOnce([
+      { key: 'ANON_KEY', value: "'${SERVICE_SUPABASEANON_KEY}'" },
+      { key: 'SERVICE_SUPABASEANON_KEY', value: 'real-anon' },
+      { key: 'DOUBLE', value: '"plain"' },
+      { key: 'INNER', value: "it's fine" },
+    ]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out.ANON_KEY).toBe('real-anon');
+    expect(out.DOUBLE).toBe('plain');
+    expect(out.INNER).toBe("it's fine");
+  });
+
+  it('uses the ${NAME:-default} fallback when NAME is absent', async () => {
+    mockFetchOnce([{ key: 'PORT', value: '${KONG_PORT:-8000}' }]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out.PORT).toBe('8000');
+  });
+
+  it('returns an empty value (so sync skips it) when a reference cannot be resolved', async () => {
+    mockFetchOnce([
+      { key: 'ORPHAN', value: '${NOT_IN_PAYLOAD}' },
+      { key: 'LOOP_A', value: '${LOOP_B}' },
+      { key: 'LOOP_B', value: '${LOOP_A}' },
+    ]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out).toEqual({ ORPHAN: '', LOOP_A: '', LOOP_B: '' });
+  });
+
   it('uses the applications path for application resources', async () => {
     const fn = mockFetchOnce([]);
     await fetchCoolifyEnv(CREDS, 'application', 'a1');
