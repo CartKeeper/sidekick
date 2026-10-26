@@ -110,6 +110,19 @@ describe('fetchCoolifyEnv', () => {
     expect(out.POSTGRES_PASSWORD).toBe('pg-pw');
   });
 
+  it('strips one pair of surrounding quotes left over from compose YAML', async () => {
+    mockFetchOnce([
+      { key: 'ANON_KEY', value: "'${SERVICE_SUPABASEANON_KEY}'" },
+      { key: 'SERVICE_SUPABASEANON_KEY', value: 'real-anon' },
+      { key: 'DOUBLE', value: '"plain"' },
+      { key: 'INNER', value: "it's fine" },
+    ]);
+    const out = await fetchCoolifyEnv(CREDS, 'service', 's1');
+    expect(out.ANON_KEY).toBe('real-anon');
+    expect(out.DOUBLE).toBe('plain');
+    expect(out.INNER).toBe("it's fine");
+  });
+
   it('uses the ${NAME:-default} fallback when NAME is absent', async () => {
     mockFetchOnce([{ key: 'PORT', value: '${KONG_PORT:-8000}' }]);
     const out = await fetchCoolifyEnv(CREDS, 'service', 's1');

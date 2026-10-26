@@ -93,9 +93,15 @@ export async function fetchCoolifyEnv(
   for (const e of envs ?? []) {
     if (!e.key) continue;
     const v = (e.real_value && e.real_value.length ? e.real_value : e.value) ?? '';
-    raw[e.key] = v;
+    raw[e.key] = stripOuterQuotes(v);
   }
   return resolveEnvRefs(raw);
+}
+
+/** Compose YAML quoting (`ANON_KEY: '${X}'`) can survive into Coolify's stored value. */
+function stripOuterQuotes(v: string): string {
+  if (v.length >= 2 && (v[0] === "'" || v[0] === '"') && v[v.length - 1] === v[0]) return v.slice(1, -1);
+  return v;
 }
 
 const ENV_REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-([^}]*))?\}/g;
